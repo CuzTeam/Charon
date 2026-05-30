@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Loader2, Shield, Copy, Check, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react'
-import { SCOPE_DESCRIPTIONS } from '@/lib/utils/oauth'
+import { SCOPE_DESCRIPTIONS } from '@/lib/utils/oauth-shared'
 
 interface VerificationData {
   token: string

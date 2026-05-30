@@ -1,8 +1,22 @@
 import crypto from 'crypto'
+import {
+  validateRedirectUri,
+  parseScopes,
+  filterScopes,
+  SCOPE_DESCRIPTIONS,
+  maskQQId,
+  maskSecret,
+} from './oauth-shared'
 
-/**
- * Generate a random verification code like CHARON-A3F9X2
- */
+export {
+  validateRedirectUri,
+  parseScopes,
+  filterScopes,
+  SCOPE_DESCRIPTIONS,
+  maskQQId,
+  maskSecret,
+}
+
 export function generateVerificationCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
@@ -12,10 +26,6 @@ export function generateVerificationCode(): string {
   return `CHARON-${code}`
 }
 
-/**
- * Simple in-memory rate limiter (per token bucket)
- * For server-side request counting — 30 RPM per IP
- */
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
 
 export function checkRateLimit(key: string, maxRequests: number = 30, windowMs: number = 60000): boolean {
@@ -35,9 +45,6 @@ export function checkRateLimit(key: string, maxRequests: number = 30, windowMs: 
   return true
 }
 
-/**
- * PKCE: Generate S256 code verifier and challenge
- */
 export function generateCodeVerifier(): string {
   return crypto.randomBytes(32).toString('base64url')
 }
@@ -57,54 +64,6 @@ export function verifyCodeChallenge(
   return false
 }
 
-/**
- * Validate that a redirect_uri matches one of the registered URIs
- * Exact match required per OAuth2 spec
- */
-export function validateRedirectUri(uri: string, registered: string[]): boolean {
-  return registered.includes(uri)
-}
-
-/**
- * Parse scopes from space-separated string
- */
-export function parseScopes(scopeStr: string): string[] {
-  return scopeStr
-    .split(/\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
-/**
- * Filter requested scopes to only those allowed by the client
- */
-export function filterScopes(requested: string[], allowed: string[]): string[] {
-  return requested.filter((s) => allowed.includes(s))
-}
-
-/**
- * Standard OIDC scopes definition
- */
-export const SCOPE_DESCRIPTIONS: Record<string, string> = {
-  openid: '确认您的身份',
-  profile: '读取您的个人资料（昵称、头像）',
-  email: '读取您的邮箱地址',
-  qq: '读取您的 QQ 号',
-  offline_access: '在您离线时访问您的数据',
-  'charon:full': '完整访问您的 Charon 账户',
-}
-
-/**
- * Mask QQ number: show first 2 and last 2 digits
- */
-export function maskQQId(qqId: string): string {
-  if (qqId.length <= 4) return qqId
-  return `${qqId.slice(0, 2)}${'*'.repeat(qqId.length - 4)}${qqId.slice(-2)}`
-}
-
-/**
- * Get client IP from request headers (Vercel / proxy)
- */
 export function getClientIp(req: Request): string {
   return (
     req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -150,10 +109,4 @@ export async function corsHeadersForOrigin(req: Request): Promise<Record<string,
     headers['Access-Control-Allow-Origin'] = origin
   }
   return headers
-}
-
-export function maskSecret(secret: string | null | undefined): string {
-  if (!secret) return ''
-  if (secret.length <= 8) return '****'
-  return `${secret.slice(0, 4)}${'*'.repeat(secret.length - 8)}${secret.slice(-4)}`
 }

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Trash2, LayoutGrid, ShieldCheck } from 'lucide-react'
-import { SCOPE_DESCRIPTIONS } from '@/lib/utils/oauth'
+import { SCOPE_DESCRIPTIONS } from '@/lib/utils/oauth-shared'
 
 interface ConsentRow {
   consent: {
