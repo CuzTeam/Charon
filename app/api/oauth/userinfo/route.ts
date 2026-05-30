@@ -2,23 +2,16 @@ import { db } from '@/lib/db'
 import { charonAccessTokens, charonUsers } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { getQQAvatarUrl } from '@/lib/onebot'
+import { corsHeadersForOrigin } from '@/lib/utils/oauth'
 import { NextResponse } from 'next/server'
 
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Cache-Control': 'no-store',
-  }
-}
-
-export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders() })
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: await corsHeadersForOrigin(req) })
 }
 
 async function handleUserinfo(req: Request) {
-  const headers = corsHeaders()
+  const headers = await corsHeadersForOrigin(req)
+  headers['Cache-Control'] = 'no-store'
   const authHeader = req.headers.get('Authorization') ?? ''
   let token = ''
 
@@ -65,24 +58,21 @@ async function handleUserinfo(req: Request) {
     claims.name = user.nickname
     claims.nickname = user.nickname
     claims.preferred_username = user.nickname
-    // Always return fresh avatar
     claims.picture = getQQAvatarUrl(user.qqId, 640)
-    claims.profile = `${process.env.NEXTAUTH_URL ?? ''}/profile/${user.qqId}`
     claims.gender = user.sex
     claims.updated_at = Math.floor((user.updatedAt?.getTime() ?? Date.now()) / 1000)
     claims.level = user.level
     claims.login_days = user.loginDays
+    claims.created_at = Math.floor((user.createdAt?.getTime() ?? Date.now()) / 1000)
+    claims.last_login_at = user.lastLoginAt
+      ? Math.floor(user.lastLoginAt.getTime() / 1000)
+      : null
   }
 
   if (scopes.includes('qq')) {
     claims.qq_id = user.qqId
+    claims.profile = `${process.env.NEXTAUTH_URL ?? ''}/profile/${user.qqId}`
   }
-
-  // Extended claims always present for full compatibility
-  claims.created_at = Math.floor((user.createdAt?.getTime() ?? Date.now()) / 1000)
-  claims.last_login_at = user.lastLoginAt
-    ? Math.floor(user.lastLoginAt.getTime() / 1000)
-    : null
 
   return NextResponse.json(claims, { headers })
 }

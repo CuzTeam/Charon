@@ -11,7 +11,7 @@ import {
 } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { writeAuditLog } from '@/lib/session'
-import { getClientIp } from '@/lib/utils/oauth'
+import { getClientIp, filterScopes } from '@/lib/utils/oauth'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 
@@ -70,7 +70,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ redirect_uri: redirectUrl.toString() })
   }
 
-  const grantedScopes = (scopes as string[]) ?? (vs.scopes as string[])
+  const allowedScopes = vs.scopes as string[]
+  const grantedScopes = filterScopes(
+    Array.isArray(scopes) ? scopes : allowedScopes,
+    allowedScopes,
+  )
 
   // Upsert consent record
   const existing = await db
