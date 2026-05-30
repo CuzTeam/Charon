@@ -56,14 +56,8 @@ function LoginForm({ next }: { next: string }) {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/auth/verify/start', {
+      const res = await fetch('/api/auth/dashboard/start', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client_id: 'charon-dashboard',
-          redirect_uri: `${window.location.origin}/home`,
-          scope: 'openid profile email qq',
-        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -85,21 +79,16 @@ function LoginForm({ next }: { next: string }) {
     setChecking(true)
     setError('')
     try {
-      const res = await fetch('/api/auth/verify/check', {
+      const res = await fetch('/api/auth/dashboard/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       })
       const data = await res.json()
       if (res.status === 429) { setError('请求过于频繁，请稍后再试'); return }
-      if (!res.ok) { setError(data.error ?? '验证失败'); return }
+      if (!res.ok) { setError(data.error ?? data.error_description ?? '验证失败'); return }
       if (!data.verified) { setError('未找到验证码，请确认已在群中发送'); return }
 
-      await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qq_id: data.user.qq_id }),
-      })
       router.push(next)
       router.refresh()
     } catch {
