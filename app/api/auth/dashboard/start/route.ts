@@ -6,7 +6,6 @@ import {
   checkRateLimit,
   getClientIp,
 } from '@/lib/utils/oauth'
-import { getGroupList } from '@/lib/onebot'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 
@@ -21,34 +20,14 @@ export async function POST(req: Request) {
   }
 
   const onebots = await db
-    .select()
+    .select({ id: charonOnebots.id })
     .from(charonOnebots)
     .where(eq(charonOnebots.isActive, true))
+    .limit(1)
 
   if (onebots.length === 0) {
     return NextResponse.json(
       { error: 'no_onebot_available', error_description: '没有可用的 OneBot 实例，请先在管理后台添加' },
-      { status: 400 },
-    )
-  }
-
-  const groupSet = new Set<string>()
-  for (const bot of onebots) {
-    try {
-      const list = await getGroupList({ baseUrl: bot.baseUrl, accessToken: bot.accessToken })
-      for (const g of list) {
-        groupSet.add(String(g.group_id))
-      }
-    } catch {
-      continue
-    }
-  }
-
-  const groups = [...groupSet]
-
-  if (groups.length === 0) {
-    return NextResponse.json(
-      { error: 'no_groups_available', error_description: 'OneBot 实例未加入任何 QQ 群' },
       { status: 400 },
     )
   }
@@ -71,6 +50,5 @@ export async function POST(req: Request) {
     token,
     code,
     expires_in: 600,
-    groups,
   })
 }

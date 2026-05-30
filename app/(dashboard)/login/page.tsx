@@ -47,7 +47,6 @@ function LoginForm({ next }: { next: string }) {
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState('')
   const [code, setCode] = useState('')
-  const [groups, setGroups] = useState<string[]>([])
   const [token, setToken] = useState('')
   const [copied, setCopied] = useState(false)
   const router = useRouter()
@@ -65,7 +64,6 @@ function LoginForm({ next }: { next: string }) {
         return
       }
       setCode(data.code)
-      setGroups(data.groups ?? [])
       setToken(data.token)
       setStep('verify')
     } catch {
@@ -104,11 +102,18 @@ function LoginForm({ next }: { next: string }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  function restart() {
+    setToken('')
+    setCode('')
+    setError('')
+    setStep('start')
+  }
+
   if (step === 'start') {
     return (
       <div className="space-y-4">
         <div className="rounded-lg border p-3 text-sm text-muted-foreground space-y-2">
-          <p className="flex items-center gap-2"><Shield className="size-4 shrink-0" /> 在 QQ 群中发送验证码</p>
+          <p className="flex items-center gap-2"><Shield className="size-4 shrink-0" /> 在任意 QQ 群中发送验证码</p>
           <p className="flex items-center gap-2"><Shield className="size-4 shrink-0" /> 无需输入 QQ 号</p>
         </div>
         <Button className="w-full" onClick={start} disabled={loading}>
@@ -121,14 +126,11 @@ function LoginForm({ next }: { next: string }) {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border bg-muted/40 p-4 text-center">
-        <p className="text-xs text-muted-foreground mb-2">在以下群中发送此验证码</p>
+        <p className="text-xs text-muted-foreground mb-2">在任意 QQ 群中发送此验证码</p>
         <p className="text-2xl font-bold tracking-widest font-mono">{code}</p>
         <button className="text-xs text-muted-foreground mt-1 hover:text-foreground" onClick={copy}>
           {copied ? '已复制 ✓' : '点击复制'}
         </button>
-        {groups.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-2">群：{groups.join(', ')}</p>
-        )}
       </div>
       {error && (
         <Alert variant="destructive">
@@ -138,7 +140,7 @@ function LoginForm({ next }: { next: string }) {
       <Button className="w-full" onClick={check} disabled={checking}>
         {checking ? <><Loader2 className="mr-2 size-4 animate-spin" />检查中…</> : '已发送，检查验证'}
       </Button>
-      <Button variant="ghost" className="w-full text-xs" onClick={() => setStep('start')}>
+      <Button variant="ghost" className="w-full text-xs" onClick={restart}>
         重新开始
       </Button>
     </div>
