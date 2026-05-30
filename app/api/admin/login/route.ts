@@ -13,10 +13,10 @@ export async function POST(req: Request) {
   const body = await req.json()
   const { password } = body
 
-  const adminPassword = process.env.CHARON_ADMIN_PASSWORD
+  const adminPassword = process.env.ADMIN_PASSWORD
   if (!adminPassword) {
     return NextResponse.json(
-      { error: 'Admin password not configured' },
+      { error: 'Admin password not configured. Set the ADMIN_PASSWORD environment variable.' },
       { status: 503 },
     )
   }

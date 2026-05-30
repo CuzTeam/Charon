@@ -79,7 +79,7 @@ export async function verifyJwt(token: string) {
 
 export function getIssuer(): string {
   const base =
-    process.env.CHARON_BASE_URL ||
+    process.env.NEXTAUTH_URL ||
     (process.env.VERCEL_PROJECT_PRODUCTION_URL
       ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
       : process.env.VERCEL_URL

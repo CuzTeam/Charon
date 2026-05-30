@@ -67,7 +67,7 @@ async function handleUserinfo(req: Request) {
     claims.preferred_username = user.nickname
     // Always return fresh avatar
     claims.picture = getQQAvatarUrl(user.qqId, 640)
-    claims.profile = `${process.env.CHARON_BASE_URL ?? ''}/profile/${user.qqId}`
+    claims.profile = `${process.env.NEXTAUTH_URL ?? ''}/profile/${user.qqId}`
     claims.gender = user.sex
     claims.updated_at = Math.floor((user.updatedAt?.getTime() ?? Date.now()) / 1000)
     claims.level = user.level
