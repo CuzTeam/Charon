@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     redirectUri: redirect_uri,
     scopes: allowedScopes,
     codeChallenge: code_challenge,
-    codeChallengeMethod: code_challenge_method ?? 'S256',
+    codeChallengeMethod: code_challenge ? (code_challenge_method ?? 'S256') : null,
     nonce,
     state,
     expiresAt,

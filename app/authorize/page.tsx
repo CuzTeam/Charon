@@ -51,8 +51,8 @@ function AuthorizeInner() {
   const scope = params.get('scope') ?? 'openid'
   const state = params.get('state') ?? ''
   const nonce = params.get('nonce') ?? ''
-  const codeChallenge = params.get('code_challenge') ?? ''
-  const codeChallengeMethod = params.get('code_challenge_method') ?? 'S256'
+  const codeChallenge = params.get('code_challenge') || ''
+  const codeChallengeMethod = params.get('code_challenge_method') || ''
 
   const [step, setStep] = useState<Step>('verify')
   const [loading, setLoading] = useState(false)
@@ -87,7 +87,7 @@ function AuthorizeInner() {
           redirect_uri: redirectUri,
           scope,
           code_challenge: codeChallenge || undefined,
-          code_challenge_method: codeChallengeMethod || undefined,
+          code_challenge_method: codeChallenge && codeChallengeMethod ? codeChallengeMethod : undefined,
           nonce: nonce || undefined,
           state: state || undefined,
         }),

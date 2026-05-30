@@ -19,6 +19,7 @@ export async function OPTIONS(req: Request) {
 
 export async function POST(req: Request) {
   const headers = await corsHeadersForOrigin(req)
+  headers['Cache-Control'] = 'no-store'
   headers['Pragma'] = 'no-cache'
 
   let body: Record<string, string>
@@ -101,10 +102,11 @@ async function handleAuthorizationCode(
     return NextResponse.json({ error: 'invalid_client' }, { status: 401, headers })
   }
 
-  if (
-    client.tokenEndpointAuthMethod !== 'none' &&
-    client.clientSecret !== client_secret
-  ) {
+  if (client.tokenEndpointAuthMethod === 'none') {
+    // no client secret required
+  } else if (!client_secret) {
+    return NextResponse.json({ error: 'invalid_client', error_description: 'client_secret is required' }, { status: 401, headers })
+  } else if (client.clientSecret !== client_secret) {
     return NextResponse.json({ error: 'invalid_client' }, { status: 401, headers })
   }
 
@@ -255,7 +257,14 @@ async function handleRefreshToken(
     .where(and(eq(charonClients.clientId, client_id), eq(charonClients.isActive, true)))
     .limit(1)
   const client = clientRows[0]
-  if (!client || (client.clientSecret !== client_secret && client.tokenEndpointAuthMethod !== 'none')) {
+  if (!client) {
+    return NextResponse.json({ error: 'invalid_client' }, { status: 401, headers })
+  }
+  if (client.tokenEndpointAuthMethod === 'none') {
+    // no client secret required
+  } else if (!client_secret) {
+    return NextResponse.json({ error: 'invalid_client', error_description: 'client_secret is required' }, { status: 401, headers })
+  } else if (client.clientSecret !== client_secret) {
     return NextResponse.json({ error: 'invalid_client' }, { status: 401, headers })
   }
 
