@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
  * - Protects /admin/* (except /admin, /admin/login page) → check admin session cookie
  */
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // ─── User dashboard protection ─────────────────────────────────────────────
