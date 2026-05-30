@@ -1,35 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2 } from 'lucide-react'
-import { SCOPE_DESCRIPTIONS } from '@/lib/utils/oauth'
-import { Shield } from 'lucide-react'
+import { Loader2, Shield } from 'lucide-react'
 
 export default function LoginPage() {
-  const router = useRouter()
-  const params = useSearchParams()
-  const next = params.get('next') ?? '/home'
-
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  function goAuthorize() {
-    // Redirect to authorize flow with a self-issued "login" intent
-    // For direct dashboard login, we use a simplified QQ verification
-    setLoading(true)
-    window.location.href = `/api/auth/verify/login-redirect?next=${encodeURIComponent(next)}`
-    setLoading(false)
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm space-y-4">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold text-xl">
+        <div className="mb-4 flex items-center justify-center">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-primary font-bold text-xl text-primary-foreground">
             C
           </div>
         </div>
@@ -39,12 +22,9 @@ export default function LoginPage() {
             <CardDescription>使用 QQ 验证登录您的账户</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <LoginForm next={next} />
+            <Suspense fallback={<div className="flex justify-center py-4"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>}>
+              <LoginInner />
+            </Suspense>
           </CardContent>
         </Card>
         <p className="text-center text-xs text-muted-foreground">
@@ -53,6 +33,12 @@ export default function LoginPage() {
       </div>
     </div>
   )
+}
+
+function LoginInner() {
+  const params = useSearchParams()
+  const next = params.get('next') ?? '/home'
+  return <LoginForm next={next} />
 }
 
 function LoginForm({ next }: { next: string }) {
@@ -70,7 +56,6 @@ function LoginForm({ next }: { next: string }) {
     setLoading(true)
     setError('')
     try {
-      // Use a built-in "dashboard" client for direct login
       const res = await fetch('/api/auth/verify/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,7 +95,6 @@ function LoginForm({ next }: { next: string }) {
       if (!res.ok) { setError(data.error ?? '验证失败'); return }
       if (!data.verified) { setError('未找到验证码，请确认已在群中发送'); return }
 
-      // Create session
       await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -134,7 +118,7 @@ function LoginForm({ next }: { next: string }) {
   if (step === 'start') {
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border p-3 text-sm text-muted-foreground space-y-1">
+        <div className="rounded-lg border p-3 text-sm text-muted-foreground space-y-2">
           <p className="flex items-center gap-2"><Shield className="size-4 shrink-0" /> 在 QQ 群中发送验证码</p>
           <p className="flex items-center gap-2"><Shield className="size-4 shrink-0" /> 无需输入 QQ 号</p>
         </div>
@@ -154,10 +138,14 @@ function LoginForm({ next }: { next: string }) {
           {copied ? '已复制 ✓' : '点击复制'}
         </button>
         {groups.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-2">群: {groups.join(', ')}</p>
+          <p className="text-xs text-muted-foreground mt-2">群：{groups.join(', ')}</p>
         )}
       </div>
-      {error && <Alert variant="destructive"><AlertDescription className="text-sm">{error}</AlertDescription></Alert>}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription className="text-sm">{error}</AlertDescription>
+        </Alert>
+      )}
       <Button className="w-full" onClick={check} disabled={checking}>
         {checking ? <><Loader2 className="mr-2 size-4 animate-spin" />检查中…</> : '已发送，检查验证'}
       </Button>

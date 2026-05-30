@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,8 +10,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Loader2, Shield, Copy, Check, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { SCOPE_DESCRIPTIONS } from '@/lib/utils/oauth'
-
-type Step = 'verify' | 'consent' | 'done' | 'error'
 
 interface VerificationData {
   token: string
@@ -28,7 +26,23 @@ interface UserData {
   email: string
 }
 
+type Step = 'verify' | 'consent' | 'done' | 'error'
+
 export default function AuthorizePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <AuthorizeInner />
+    </Suspense>
+  )
+}
+
+function AuthorizeInner() {
   const params = useSearchParams()
   const router = useRouter()
 
