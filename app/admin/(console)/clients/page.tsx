@@ -8,12 +8,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Plus, Trash2, Copy, Check, AppWindow, Eye, EyeOff, Pencil } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Loader2, Plus, Trash2, Copy, Check, AppWindow, Eye, EyeOff, Pencil, ChevronsUpDown, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Client {
   id: string
@@ -34,6 +38,42 @@ interface Client {
   createdAt: string
 }
 
+interface OneBotItem {
+  id: string
+  name: string
+  baseUrl: string
+  botQq: string | null
+  isActive: boolean
+}
+
+interface GroupItem {
+  groupId: string
+  groupName: string
+  onebotId: string
+  onebotName: string
+}
+
+interface FormState {
+  name: string
+  description: string
+  redirectUris: string
+  allowedScopes: string
+  allowedGroups: string[]
+  onebotIds: string[]
+  requirePkce: boolean
+  accessTokenTtl: number
+  refreshTokenTtl: number
+  idTokenTtl: number
+}
+
+const defaultForm: FormState = {
+  name: '', description: '', redirectUris: '',
+  allowedScopes: 'openid profile email qq',
+  allowedGroups: [], onebotIds: [],
+  requirePkce: true, accessTokenTtl: 3600,
+  refreshTokenTtl: 2592000, idTokenTtl: 3600,
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,26 +86,28 @@ export default function ClientsPage() {
   const [showSecret, setShowSecret] = useState<Record<string, boolean>>({})
   const [copied, setCopied] = useState<Record<string, boolean>>({})
 
-  const [form, setForm] = useState({
-    name: '', description: '', redirectUris: '',
-    allowedScopes: 'openid profile email qq',
-    allowedGroups: '', onebotIds: '',
-    requirePkce: true, accessTokenTtl: 3600,
-    refreshTokenTtl: 2592000, idTokenTtl: 3600,
-  })
+  const [onebots, setOnebots] = useState<OneBotItem[]>([])
+  const [groups, setGroups] = useState<GroupItem[]>([])
+  const [groupsOpen, setGroupsOpen] = useState(false)
+  const [editGroupsOpen, setEditGroupsOpen] = useState(false)
 
-  const [editForm, setEditForm] = useState({
-    name: '', description: '', redirectUris: '',
-    allowedScopes: '', allowedGroups: '', onebotIds: '',
-    requirePkce: true, accessTokenTtl: 3600,
-    refreshTokenTtl: 2592000, idTokenTtl: 3600,
-  })
+  const [form, setForm] = useState<FormState>({ ...defaultForm })
+  const [editForm, setEditForm] = useState<FormState>({ ...defaultForm })
 
   useEffect(() => {
     fetch('/api/admin/clients')
       .then((r) => r.json())
       .then(setClients)
       .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/admin/onebots')
+      .then((r) => r.json())
+      .then(setOnebots)
+    fetch('/api/admin/onebots/groups')
+      .then((r) => r.json())
+      .then(setGroups)
   }, [])
 
   async function createClient() {
@@ -80,8 +122,8 @@ export default function ClientsPage() {
           description: form.description || null,
           redirectUris: form.redirectUris.split('\n').map((s) => s.trim()).filter(Boolean),
           allowedScopes: form.allowedScopes.split(/\s+/).filter(Boolean),
-          allowedGroups: form.allowedGroups.split('\n').map((s) => s.trim()).filter(Boolean),
-          onebotIds: form.onebotIds.split('\n').map((s) => s.trim()).filter(Boolean),
+          allowedGroups: form.allowedGroups,
+          onebotIds: form.onebotIds,
           requirePkce: form.requirePkce,
           accessTokenTtl: form.accessTokenTtl,
           refreshTokenTtl: form.refreshTokenTtl,
@@ -92,7 +134,7 @@ export default function ClientsPage() {
       if (!res.ok) { setError(data.error ?? 'Create failed'); return }
       setClients((prev) => [...prev, data])
       setCreateOpen(false)
-      setForm({ name: '', description: '', redirectUris: '', allowedScopes: 'openid profile email qq', allowedGroups: '', onebotIds: '', requirePkce: true, accessTokenTtl: 3600, refreshTokenTtl: 2592000, idTokenTtl: 3600 })
+      setForm({ ...defaultForm })
     } catch { setError('Network error') }
     finally { setCreating(false) }
   }
@@ -120,8 +162,8 @@ export default function ClientsPage() {
       description: client.description ?? '',
       redirectUris: (client.redirectUris as string[]).join('\n'),
       allowedScopes: (client.allowedScopes as string[]).join(' '),
-      allowedGroups: (client.allowedGroups as string[]).join('\n'),
-      onebotIds: (client.onebotIds as string[]).join('\n'),
+      allowedGroups: [...(client.allowedGroups as string[])],
+      onebotIds: [...(client.onebotIds as string[])],
       requirePkce: client.requirePkce,
       accessTokenTtl: client.accessTokenTtl,
       refreshTokenTtl: client.refreshTokenTtl,
@@ -143,8 +185,8 @@ export default function ClientsPage() {
           description: editForm.description || null,
           redirectUris: editForm.redirectUris.split('\n').map((s) => s.trim()).filter(Boolean),
           allowedScopes: editForm.allowedScopes.split(/\s+/).filter(Boolean),
-          allowedGroups: editForm.allowedGroups.split('\n').map((s) => s.trim()).filter(Boolean),
-          onebotIds: editForm.onebotIds.split('\n').map((s) => s.trim()).filter(Boolean),
+          allowedGroups: editForm.allowedGroups,
+          onebotIds: editForm.onebotIds,
           requirePkce: editForm.requirePkce,
           accessTokenTtl: editForm.accessTokenTtl,
           refreshTokenTtl: editForm.refreshTokenTtl,
@@ -163,6 +205,123 @@ export default function ClientsPage() {
     navigator.clipboard.writeText(text)
     setCopied((prev) => ({ ...prev, [key]: true }))
     setTimeout(() => setCopied((prev) => ({ ...prev, [key]: false })), 2000)
+  }
+
+  function toggleOnebot(formSetter: React.Dispatch<React.SetStateAction<FormState>>, id: string) {
+    formSetter((f) => ({
+      ...f,
+      onebotIds: f.onebotIds.includes(id)
+        ? f.onebotIds.filter((x) => x !== id)
+        : [...f.onebotIds, id],
+    }))
+  }
+
+  function toggleGroup(formSetter: React.Dispatch<React.SetStateAction<FormState>>, groupId: string) {
+    formSetter((f) => ({
+      ...f,
+      allowedGroups: f.allowedGroups.includes(groupId)
+        ? f.allowedGroups.filter((x) => x !== groupId)
+        : [...f.allowedGroups, groupId],
+    }))
+  }
+
+  function GroupMultiSelect({
+    selected,
+    onToggle,
+    open,
+    onOpenChange,
+  }: {
+    selected: string[]
+    onToggle: (groupId: string) => void
+    open: boolean
+    onOpenChange: (open: boolean) => void
+  }) {
+    const selectedLabels = groups.filter((g) => selected.includes(g.groupId))
+    return (
+      <div className="space-y-1.5">
+        <Label>Allowed QQ Groups</Label>
+        <Popover open={open} onOpenChange={onOpenChange}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between h-auto min-h-9 font-normal">
+              {selected.length === 0 ? (
+                <span className="text-muted-foreground">Select groups…</span>
+              ) : (
+                <div className="flex flex-wrap gap-1 flex-1">
+                  {selectedLabels.map((g) => (
+                    <Badge key={g.groupId} variant="secondary" className="text-xs font-mono gap-0.5 pr-1">
+                      {g.groupName || g.groupId}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search groups…" />
+              <CommandList>
+                <CommandEmpty>No groups found.</CommandEmpty>
+                {onebots.filter((ob) => ob.isActive).map((ob) => {
+                  const obGroups = groups.filter((g) => g.onebotId === ob.id)
+                  if (obGroups.length === 0) return null
+                  return (
+                    <CommandGroup key={ob.id} heading={ob.name}>
+                      {obGroups.map((g) => (
+                        <CommandItem
+                          key={g.groupId}
+                          value={`${g.groupName} ${g.groupId}`}
+                          onSelect={() => onToggle(g.groupId)}
+                          className="cursor-pointer"
+                        >
+                          <Checkbox checked={selected.includes(g.groupId)} className="mr-2" />
+                          <span className="flex-1 truncate">{g.groupName}</span>
+                          <span className="text-xs text-muted-foreground font-mono">{g.groupId}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )
+                })}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      </div>
+    )
+  }
+
+  function OnebotChecklist({
+    selected,
+    onToggle,
+  }: {
+    selected: string[]
+    onToggle: (id: string) => void
+  }) {
+    return (
+      <div className="space-y-1.5">
+        <Label>OneBot Instances</Label>
+        <div className="rounded-md border p-3 space-y-2 max-h-48 overflow-y-auto">
+          {onebots.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-2">No OneBot instances. Add one in Settings → OneBots.</p>
+          ) : (
+            onebots.map((ob) => (
+              <label key={ob.id} className={cn('flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer hover:bg-accent', !ob.isActive && 'opacity-50')}>
+                <Checkbox
+                  checked={selected.includes(ob.id)}
+                  onCheckedChange={() => onToggle(ob.id)}
+                  disabled={!ob.isActive}
+                />
+                <span className="text-sm flex-1">{ob.name}</span>
+                {ob.botQq && <span className="text-xs text-muted-foreground font-mono">{ob.botQq}</span>}
+                <Badge variant={ob.isActive ? 'default' : 'secondary'} className="text-[10px] px-1.5">
+                  {ob.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+              </label>
+            ))
+          )}
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -208,15 +367,8 @@ export default function ClientsPage() {
                 <Label>Allowed Scopes (space separated)</Label>
                 <Input value={form.allowedScopes} onChange={(e) => setForm(f => ({ ...f, allowedScopes: e.target.value }))} />
               </div>
-              <div className="space-y-1.5">
-                <Label>Allowed QQ Groups (one per line)</Label>
-                <textarea
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono min-h-[60px] resize-y focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={form.allowedGroups}
-                  onChange={(e) => setForm(f => ({ ...f, allowedGroups: e.target.value }))}
-                  placeholder="123456789"
-                />
-              </div>
+              <OnebotChecklist selected={form.onebotIds} onToggle={(id) => toggleOnebot(setForm, id)} />
+              <GroupMultiSelect selected={form.allowedGroups} onToggle={(id) => toggleGroup(setForm, id)} open={groupsOpen} onOpenChange={setGroupsOpen} />
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label>Access Token TTL (s)</Label>
@@ -274,22 +426,8 @@ export default function ClientsPage() {
                 <Label>Allowed Scopes (space separated)</Label>
                 <Input value={editForm.allowedScopes} onChange={(e) => setEditForm(f => ({ ...f, allowedScopes: e.target.value }))} />
               </div>
-              <div className="space-y-1.5">
-                <Label>Allowed QQ Groups (one per line)</Label>
-                <textarea
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono min-h-[60px] resize-y focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={editForm.allowedGroups}
-                  onChange={(e) => setEditForm(f => ({ ...f, allowedGroups: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>OneBot IDs (one per line)</Label>
-                <textarea
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono min-h-[60px] resize-y focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={editForm.onebotIds}
-                  onChange={(e) => setEditForm(f => ({ ...f, onebotIds: e.target.value }))}
-                />
-              </div>
+              <OnebotChecklist selected={editForm.onebotIds} onToggle={(id) => toggleOnebot(setEditForm, id)} />
+              <GroupMultiSelect selected={editForm.allowedGroups} onToggle={(id) => toggleGroup(setEditForm, id)} open={editGroupsOpen} onOpenChange={setEditGroupsOpen} />
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label>Access Token TTL (s)</Label>
@@ -354,7 +492,6 @@ export default function ClientsPage() {
               </CardHeader>
               <Separator />
               <CardContent className="pt-3 space-y-3">
-                {/* Client ID */}
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground w-24 shrink-0">Client ID</span>
                   <code className="text-xs font-mono flex-1 truncate bg-muted rounded px-2 py-1">{client.clientId}</code>
@@ -362,7 +499,6 @@ export default function ClientsPage() {
                     {copied[`id-${client.id}`] ? <Check className="size-3 text-green-500" /> : <Copy className="size-3" />}
                   </Button>
                 </div>
-                {/* Client Secret */}
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground w-24 shrink-0">Client Secret</span>
                   <code className="text-xs font-mono flex-1 truncate bg-muted rounded px-2 py-1">
@@ -375,7 +511,6 @@ export default function ClientsPage() {
                     {copied[`sec-${client.id}`] ? <Check className="size-3 text-green-500" /> : <Copy className="size-3" />}
                   </Button>
                 </div>
-                {/* Redirect URIs */}
                 <div className="flex items-start gap-2">
                   <span className="text-xs text-muted-foreground w-24 shrink-0 pt-1">Redirect URIs</span>
                   <div className="flex-1 flex flex-wrap gap-1">
@@ -384,7 +519,6 @@ export default function ClientsPage() {
                     ))}
                   </div>
                 </div>
-                {/* Scopes */}
                 <div className="flex items-start gap-2">
                   <span className="text-xs text-muted-foreground w-24 shrink-0 pt-1">Scopes</span>
                   <div className="flex-1 flex flex-wrap gap-1">
@@ -393,14 +527,33 @@ export default function ClientsPage() {
                     ))}
                   </div>
                 </div>
-                {/* Groups */}
                 {(client.allowedGroups as string[]).length > 0 && (
                   <div className="flex items-start gap-2">
                     <span className="text-xs text-muted-foreground w-24 shrink-0 pt-1">QQ Groups</span>
                     <div className="flex-1 flex flex-wrap gap-1">
-                      {(client.allowedGroups as string[]).map((g) => (
-                        <Badge key={g} variant="secondary" className="font-mono text-xs">群 {g}</Badge>
-                      ))}
+                      {(client.allowedGroups as string[]).map((g) => {
+                        const info = groups.find((gr) => gr.groupId === g)
+                        return (
+                          <Badge key={g} variant="secondary" className="font-mono text-xs">
+                            {info ? info.groupName : `群 ${g}`}
+                          </Badge>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+                {(client.onebotIds as string[]).length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-xs text-muted-foreground w-24 shrink-0 pt-1">OneBots</span>
+                    <div className="flex-1 flex flex-wrap gap-1">
+                      {(client.onebotIds as string[]).map((id) => {
+                        const ob = onebots.find((o) => o.id === id)
+                        return (
+                          <Badge key={id} variant="outline" className="text-xs">
+                            {ob ? ob.name : id}
+                          </Badge>
+                        )
+                      })}
                     </div>
                   </div>
                 )}
