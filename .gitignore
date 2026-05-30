@@ -21,3 +21,6 @@ node_modules
 *.md
 *.mdx
 *.markdown
+
+# TypeScript build info
+tsconfig.tsbuildinfo

@@ -13,7 +13,7 @@ import {
   DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Plus, Trash2, Copy, Check, AppWindow, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Plus, Trash2, Copy, Check, AppWindow, Eye, EyeOff, Pencil } from 'lucide-react'
 
 interface Client {
   id: string
@@ -38,8 +38,11 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [showSecret, setShowSecret] = useState<Record<string, boolean>>({})
   const [copied, setCopied] = useState<Record<string, boolean>>({})
 
@@ -47,6 +50,13 @@ export default function ClientsPage() {
     name: '', description: '', redirectUris: '',
     allowedScopes: 'openid profile email qq',
     allowedGroups: '', onebotIds: '',
+    requirePkce: true, accessTokenTtl: 3600,
+    refreshTokenTtl: 2592000, idTokenTtl: 3600,
+  })
+
+  const [editForm, setEditForm] = useState({
+    name: '', description: '', redirectUris: '',
+    allowedScopes: '', allowedGroups: '', onebotIds: '',
     requirePkce: true, accessTokenTtl: 3600,
     refreshTokenTtl: 2592000, idTokenTtl: 3600,
   })
@@ -101,6 +111,52 @@ export default function ClientsPage() {
     })
     const data = await res.json()
     setClients((prev) => prev.map((c) => c.id === client.id ? data : c))
+  }
+
+  function openEdit(client: Client) {
+    setEditingId(client.id)
+    setEditForm({
+      name: client.name,
+      description: client.description ?? '',
+      redirectUris: (client.redirectUris as string[]).join('\n'),
+      allowedScopes: (client.allowedScopes as string[]).join(' '),
+      allowedGroups: (client.allowedGroups as string[]).join('\n'),
+      onebotIds: (client.onebotIds as string[]).join('\n'),
+      requirePkce: client.requirePkce,
+      accessTokenTtl: client.accessTokenTtl,
+      refreshTokenTtl: client.refreshTokenTtl,
+      idTokenTtl: client.idTokenTtl,
+    })
+    setEditOpen(true)
+  }
+
+  async function editClient() {
+    if (!editingId) return
+    setSaving(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/clients/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name,
+          description: editForm.description || null,
+          redirectUris: editForm.redirectUris.split('\n').map((s) => s.trim()).filter(Boolean),
+          allowedScopes: editForm.allowedScopes.split(/\s+/).filter(Boolean),
+          allowedGroups: editForm.allowedGroups.split('\n').map((s) => s.trim()).filter(Boolean),
+          onebotIds: editForm.onebotIds.split('\n').map((s) => s.trim()).filter(Boolean),
+          requirePkce: editForm.requirePkce,
+          accessTokenTtl: editForm.accessTokenTtl,
+          refreshTokenTtl: editForm.refreshTokenTtl,
+          idTokenTtl: editForm.idTokenTtl,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? 'Update failed'); return }
+      setClients((prev) => prev.map((c) => c.id === editingId ? data : c))
+      setEditOpen(false)
+    } catch { setError('Network error') }
+    finally { setSaving(false) }
   }
 
   function copy(key: string, text: string) {
@@ -189,6 +245,79 @@ export default function ClientsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Client</DialogTitle>
+              <DialogDescription>Update OAuth client configuration</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+              <div className="space-y-1.5">
+                <Label>Name *</Label>
+                <Input value={editForm.name} onChange={(e) => setEditForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Description</Label>
+                <Input value={editForm.description} onChange={(e) => setEditForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Redirect URIs (one per line)</Label>
+                <textarea
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono min-h-[80px] resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={editForm.redirectUris}
+                  onChange={(e) => setEditForm(f => ({ ...f, redirectUris: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Allowed Scopes (space separated)</Label>
+                <Input value={editForm.allowedScopes} onChange={(e) => setEditForm(f => ({ ...f, allowedScopes: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Allowed QQ Groups (one per line)</Label>
+                <textarea
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono min-h-[60px] resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={editForm.allowedGroups}
+                  onChange={(e) => setEditForm(f => ({ ...f, allowedGroups: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>OneBot IDs (one per line)</Label>
+                <textarea
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono min-h-[60px] resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={editForm.onebotIds}
+                  onChange={(e) => setEditForm(f => ({ ...f, onebotIds: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Access Token TTL (s)</Label>
+                  <Input type="number" value={editForm.accessTokenTtl} onChange={(e) => setEditForm(f => ({ ...f, accessTokenTtl: +e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Refresh Token TTL (s)</Label>
+                  <Input type="number" value={editForm.refreshTokenTtl} onChange={(e) => setEditForm(f => ({ ...f, refreshTokenTtl: +e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>ID Token TTL (s)</Label>
+                  <Input type="number" value={editForm.idTokenTtl} onChange={(e) => setEditForm(f => ({ ...f, idTokenTtl: +e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                <Label className="cursor-pointer">Require PKCE</Label>
+                <Switch checked={editForm.requirePkce} onCheckedChange={(v) => setEditForm(f => ({ ...f, requirePkce: v }))} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+              <Button onClick={editClient} disabled={saving || !editForm.name}>
+                {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {clients.length === 0 ? (
@@ -213,6 +342,9 @@ export default function ClientsPage() {
                     {client.description && <CardDescription>{client.description}</CardDescription>}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <Button variant="ghost" size="icon" className="size-8" onClick={() => openEdit(client)}>
+                      <Pencil className="size-4" />
+                    </Button>
                     <Switch checked={client.isActive} onCheckedChange={() => toggleActive(client)} />
                     <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => deleteClient(client.id)}>
                       <Trash2 className="size-4" />
