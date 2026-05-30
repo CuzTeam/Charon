@@ -166,7 +166,7 @@ function AuthorizeInner() {
         await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ qq_id: user.qq_id }),
+          body: JSON.stringify({ qq_id: user.qq_id, verification_token: verif.token }),
         })
       }
       window.location.href = data.redirect_uri

@@ -27,19 +27,20 @@ export async function POST(req: Request) {
   if (contentType.includes('application/json')) {
     body = await req.json()
   } else {
-    const form = await req.formData()
-    body = Object.fromEntries(
-      Array.from(form.entries()).map(([k, v]) => [k, v.toString()]),
-    )
+    const text = await req.text()
+    const params = new URLSearchParams(text)
+    body = Object.fromEntries(params.entries())
   }
 
   // Support Basic auth for client credentials
   const authHeader = req.headers.get('Authorization') ?? ''
   if (authHeader.startsWith('Basic ')) {
     const decoded = Buffer.from(authHeader.slice(6), 'base64').toString()
-    const [clientId, clientSecret] = decoded.split(':')
-    if (!body.client_id) body.client_id = clientId
-    if (!body.client_secret) body.client_secret = decodeURIComponent(clientSecret)
+    const colonIndex = decoded.indexOf(':')
+    if (colonIndex !== -1) {
+      if (!body.client_id) body.client_id = decoded.slice(0, colonIndex)
+      if (!body.client_secret) body.client_secret = decoded.slice(colonIndex + 1)
+    }
   }
 
   const grantType = body.grant_type
