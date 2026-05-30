@@ -31,7 +31,7 @@ export default function OneBotsSettingsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [testing, setTesting] = useState<Record<string, boolean>>({})
-  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; botQq?: string; nickname?: string; error?: string }>>({})
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; bot_qq?: string; nickname?: string; error?: string }>>({})
   const [error, setError] = useState('')
   const [form, setForm] = useState({ name: '', baseUrl: '', accessToken: '' })
 
@@ -200,7 +200,7 @@ export default function OneBotsSettingsPage() {
                   <CardContent className="pt-2 pb-3">
                     <div className={`flex items-center gap-2 text-sm ${testResults[bot.id].ok ? 'text-green-600' : 'text-destructive'}`}>
                       {testResults[bot.id].ok
-                        ? <><Wifi className="size-4" /> Connected — QQ {testResults[bot.id].botQq} ({testResults[bot.id].nickname})</>
+                        ? <><Wifi className="size-4" /> Connected — QQ {testResults[bot.id].bot_qq} ({testResults[bot.id].nickname})</>
                         : <><WifiOff className="size-4" /> {testResults[bot.id].error}</>
                       }
                     </div>

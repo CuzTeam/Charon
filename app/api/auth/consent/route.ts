@@ -7,9 +7,10 @@ import {
   charonVerificationSessions,
   charonConsents,
   charonAuthorizationCodes,
+  charonUsers,
 } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { getSessionFromCookies, writeAuditLog } from '@/lib/session'
+import { writeAuditLog } from '@/lib/session'
 import { getClientIp } from '@/lib/utils/oauth'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
@@ -40,15 +41,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid_session' }, { status: 400 })
   }
 
-  const userId = vs.qqId
-    ? (
-        await db
-          .select({ id: (await import('@/lib/db/schema')).charonUsers.id })
-          .from((await import('@/lib/db/schema')).charonUsers)
-          .where(eq((await import('@/lib/db/schema')).charonUsers.qqId, vs.qqId))
-          .limit(1)
-      )[0]?.id
-    : null
+  let userId: string | null = null
+  if (vs.qqId) {
+    const userRows = await db
+      .select({ id: charonUsers.id })
+      .from(charonUsers)
+      .where(eq(charonUsers.qqId, vs.qqId))
+      .limit(1)
+    userId = userRows[0]?.id ?? null
+  }
 
   if (!userId) {
     return NextResponse.json({ error: 'user_not_found' }, { status: 400 })

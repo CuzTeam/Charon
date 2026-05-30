@@ -11,7 +11,7 @@ import {
   getSessionFromCookies,
   deleteUserSession,
 } from '@/lib/session'
-import { getClientIp, getQQAvatarUrl as buildAvatarUrl } from '@/lib/utils/oauth'
+import { getClientIp } from '@/lib/utils/oauth'
 import { getQQAvatarUrl } from '@/lib/onebot'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
