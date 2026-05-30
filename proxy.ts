@@ -23,10 +23,13 @@ export function proxy(req: NextRequest) {
 
   // ─── Admin console protection ──────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
-    // Allow the admin login page and admin login API
-    const isLoginPage = pathname === '/admin' || pathname === '/admin/' || pathname === '/admin/login'
-    const isLoginApi = pathname === '/api/admin/login'
-    if (!isLoginPage && !isLoginApi) {
+    // Allow the login page; all other /admin/* paths require a valid session cookie
+    const isPublic =
+      pathname === '/admin' ||
+      pathname === '/admin/' ||
+      pathname === '/admin/login'
+
+    if (!isPublic) {
       const adminSession = req.cookies.get('charon_admin_session')?.value
       if (!adminSession) {
         const url = req.nextUrl.clone()

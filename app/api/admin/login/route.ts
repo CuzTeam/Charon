@@ -27,12 +27,16 @@ export async function POST(req: Request) {
 
   const token = await createAdminSession({ ipAddress: ip, userAgent: ua })
   const cookieStore = await cookies()
+  const isDev = process.env.NODE_ENV === 'development'
   cookieStore.set('charon_admin_session', token, {
     httpOnly: true,
     secure: true,
-    sameSite: 'strict',
+    // 'strict' blocks the cookie on cross-site iframes (v0 preview) and on
+    // /api/* routes when path is limited to /admin. Use 'none' in dev so the
+    // preview iframe keeps the session, 'lax' in production.
+    sameSite: isDev ? 'none' : 'lax',
     maxAge: 60 * 60 * 8,
-    path: '/admin',
+    path: '/', // must be '/' so /api/admin/* routes receive the cookie
   })
 
   return NextResponse.json({ ok: true })
@@ -43,7 +47,7 @@ export async function DELETE() {
   const token = cookieStore.get('charon_admin_session')?.value
   if (token) {
     await deleteAdminSession(token)
-    cookieStore.delete('charon_admin_session')
+    cookieStore.delete({ name: 'charon_admin_session', path: '/' })
   }
   return NextResponse.json({ ok: true })
 }
