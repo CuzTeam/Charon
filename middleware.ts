@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-/**
- * Charon middleware
- * - Protects /home, /apps, /dino-games → redirect to /login
- * - Protects /admin/* (except /admin, /admin/login page) → check admin session cookie
- */
-
-export function proxy(req: NextRequest) {
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // ─── User dashboard protection ─────────────────────────────────────────────
   const userProtected = ['/home', '/apps', '/dino-games']
   if (userProtected.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
     const session = req.cookies.get('charon_session')?.value
@@ -21,9 +14,7 @@ export function proxy(req: NextRequest) {
     }
   }
 
-  // ─── Admin console protection ──────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
-    // Allow the login page; all other /admin/* paths require a valid session cookie
     const isPublic =
       pathname === '/admin' ||
       pathname === '/admin/' ||

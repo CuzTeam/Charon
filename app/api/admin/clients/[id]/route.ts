@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { charonClients } from '@/lib/db/schema'
 import { getAdminSessionFromCookies } from '@/lib/session'
+import { maskSecret } from '@/lib/utils/oauth'
 import { eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 
@@ -17,7 +18,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { id } = await params
   const rows = await db.select().from(charonClients).where(eq(charonClients.id, id)).limit(1)
   if (!rows[0]) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(rows[0])
+  const masked = { ...rows[0], clientSecret: maskSecret(rows[0].clientSecret) }
+  return NextResponse.json(masked)
 }
 
 // PATCH /api/admin/clients/[id]
@@ -40,7 +42,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   await db.update(charonClients).set(update).where(eq(charonClients.id, id))
   const rows = await db.select().from(charonClients).where(eq(charonClients.id, id)).limit(1)
-  return NextResponse.json(rows[0])
+  const masked = { ...rows[0], clientSecret: maskSecret(rows[0].clientSecret) }
+  return NextResponse.json(masked)
 }
 
 // DELETE /api/admin/clients/[id]

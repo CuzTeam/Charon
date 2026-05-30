@@ -8,28 +8,18 @@ import {
 } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { signJwt, getIssuer } from '@/lib/jwt'
-import { verifyCodeChallenge } from '@/lib/utils/oauth'
+import { verifyCodeChallenge, corsHeadersForOrigin, getClientIp } from '@/lib/utils/oauth'
 import { writeAuditLog } from '@/lib/session'
-import { getClientIp } from '@/lib/utils/oauth'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Cache-Control': 'no-store',
-    Pragma: 'no-cache',
-  }
-}
-
-export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders() })
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: await corsHeadersForOrigin(req) })
 }
 
 export async function POST(req: Request) {
-  const headers = corsHeaders()
+  const headers = await corsHeadersForOrigin(req)
+  headers['Pragma'] = 'no-cache'
 
   let body: Record<string, string>
   const contentType = req.headers.get('content-type') ?? ''

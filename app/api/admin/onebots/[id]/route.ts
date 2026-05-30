@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { charonOnebots } from '@/lib/db/schema'
 import { getAdminSessionFromCookies } from '@/lib/session'
+import { maskSecret } from '@/lib/utils/oauth'
 import { eq } from 'drizzle-orm'
 import { getLoginInfo } from '@/lib/onebot'
 import { NextResponse } from 'next/server'
@@ -23,7 +24,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   await db.update(charonOnebots).set(update).where(eq(charonOnebots.id, id))
   const rows = await db.select().from(charonOnebots).where(eq(charonOnebots.id, id)).limit(1)
-  return NextResponse.json(rows[0])
+  const masked = { ...rows[0], accessToken: maskSecret(rows[0].accessToken) }
+  return NextResponse.json(masked)
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {

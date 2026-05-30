@@ -7,7 +7,7 @@ export function generateVerificationCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
   for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)]
+    code += chars[crypto.randomInt(chars.length)]
   }
   return `CHARON-${code}`
 }
@@ -53,9 +53,6 @@ export function verifyCodeChallenge(
 ): boolean {
   if (method === 'S256') {
     return generateCodeChallenge(verifier) === challenge
-  }
-  if (method === 'plain') {
-    return verifier === challenge
   }
   return false
 }
@@ -114,4 +111,49 @@ export function getClientIp(req: Request): string {
     req.headers.get('x-real-ip') ||
     'unknown'
   )
+}
+
+export async function getAllowedOrigins(): Promise<string[]> {
+  const origins = new Set<string>()
+  const appUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.V0_RUNTIME_URL || 'http://localhost:3000'
+  try {
+    origins.add(new URL(appUrl).origin)
+  } catch { /* ignore */ }
+
+  try {
+    const { db } = await import('@/lib/db')
+    const { charonClients } = await import('@/lib/db/schema')
+    const clients = await db.select({ redirectUris: charonClients.redirectUris }).from(charonClients)
+    for (const client of clients) {
+      for (const uri of (client.redirectUris as string[])) {
+        try { origins.add(new URL(uri).origin) } catch { /* ignore */ }
+      }
+    }
+  } catch { /* ignore */ }
+
+  return Array.from(origins)
+}
+
+export async function corsHeadersForOrigin(req: Request): Promise<Record<string, string>> {
+  const origin = req.headers.get('origin')
+  const allowed = await getAllowedOrigins()
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Cache-Control': 'no-store',
+  }
+  if (origin && allowed.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin
+  }
+  return headers
+}
+
+export function maskSecret(secret: string | null | undefined): string {
+  if (!secret) return ''
+  if (secret.length <= 8) return '****'
+  return `${secret.slice(0, 4)}${'*'.repeat(secret.length - 8)}${secret.slice(-4)}`
 }

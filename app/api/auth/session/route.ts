@@ -4,8 +4,8 @@
  * DELETE /api/auth/session — logout
  */
 import { db } from '@/lib/db'
-import { charonUsers } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { charonUsers, charonVerificationSessions } from '@/lib/db/schema'
+import { eq, and, gt } from 'drizzle-orm'
 import {
   createUserSession,
   getSessionFromCookies,
@@ -44,10 +44,31 @@ export async function POST(req: Request) {
   const ip = getClientIp(req)
   const ua = req.headers.get('user-agent') ?? undefined
   const body = await req.json()
-  const { qq_id } = body
+  const { qq_id, verification_token } = body
 
-  if (!qq_id) {
+  if (!qq_id || !verification_token) {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400 })
+  }
+
+  const verificationSessions = await db
+    .select()
+    .from(charonVerificationSessions)
+    .where(
+      and(
+        eq(charonVerificationSessions.token, verification_token),
+        eq(charonVerificationSessions.verified, true),
+        gt(charonVerificationSessions.expiresAt, new Date()),
+      ),
+    )
+    .limit(1)
+
+  const verificationSession = verificationSessions[0]
+  if (!verificationSession) {
+    return NextResponse.json({ error: 'invalid_verification_token' }, { status: 401 })
+  }
+
+  if (verificationSession.qqId !== qq_id) {
+    return NextResponse.json({ error: 'qq_id_mismatch' }, { status: 403 })
   }
 
   const users = await db

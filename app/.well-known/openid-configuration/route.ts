@@ -42,7 +42,7 @@ export async function GET() {
       'updated_at',
       'qq_id',
     ],
-    code_challenge_methods_supported: ['S256', 'plain'],
+    code_challenge_methods_supported: ['S256'],
     revocation_endpoint: `${issuer}/api/oauth/revoke`,
     introspection_endpoint: `${issuer}/api/oauth/introspect`,
     end_session_endpoint: `${issuer}/api/oauth/logout`,

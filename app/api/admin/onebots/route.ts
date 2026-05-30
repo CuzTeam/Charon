@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { charonOnebots } from '@/lib/db/schema'
 import { getAdminSessionFromCookies } from '@/lib/session'
+import { maskSecret } from '@/lib/utils/oauth'
 import { eq } from 'drizzle-orm'
 import { getLoginInfo } from '@/lib/onebot'
 import { NextResponse } from 'next/server'
@@ -16,7 +17,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const bots = await db.select().from(charonOnebots).orderBy(charonOnebots.createdAt)
-  return NextResponse.json(bots)
+  const masked = bots.map((b) => ({ ...b, accessToken: maskSecret(b.accessToken) }))
+  return NextResponse.json(masked)
 }
 
 export async function POST(req: Request) {
@@ -43,5 +45,6 @@ export async function POST(req: Request) {
   })
 
   const rows = await db.select().from(charonOnebots).where(eq(charonOnebots.id, id)).limit(1)
-  return NextResponse.json(rows[0], { status: 201 })
+  const masked = { ...rows[0], accessToken: maskSecret(rows[0].accessToken) }
+  return NextResponse.json(masked, { status: 201 })
 }

@@ -1,23 +1,15 @@
 import { db } from '@/lib/db'
-import { charonAccessTokens, charonUsers } from '@/lib/db/schema'
+import { charonAccessTokens, charonClients, charonUsers } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
+import { corsHeadersForOrigin } from '@/lib/utils/oauth'
 import { NextResponse } from 'next/server'
 
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Cache-Control': 'no-store',
-  }
-}
-
-export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders() })
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: await corsHeadersForOrigin(req) })
 }
 
 export async function POST(req: Request) {
-  const headers = corsHeaders()
+  const headers = await corsHeadersForOrigin(req)
 
   let body: Record<string, string> = {}
   const ct = req.headers.get('content-type') ?? ''
@@ -26,6 +18,37 @@ export async function POST(req: Request) {
   } else {
     const form = await req.formData()
     body = Object.fromEntries(Array.from(form.entries()).map(([k, v]) => [k, v.toString()]))
+  }
+
+  const authHeader = req.headers.get('Authorization') ?? ''
+  if (authHeader.startsWith('Basic ')) {
+    const decoded = Buffer.from(authHeader.slice(6), 'base64').toString()
+    const [clientId, clientSecret] = decoded.split(':')
+    if (!body.client_id) body.client_id = clientId
+    if (!body.client_secret) body.client_secret = decodeURIComponent(clientSecret)
+  }
+
+  const { client_id, client_secret } = body
+
+  const clientRows = await db
+    .select()
+    .from(charonClients)
+    .where(and(eq(charonClients.clientId, client_id), eq(charonClients.isActive, true)))
+    .limit(1)
+  const client = clientRows[0]
+
+  if (!client) {
+    return NextResponse.json(
+      { error: 'invalid_client' },
+      { status: 401, headers },
+    )
+  }
+
+  if (client.tokenEndpointAuthMethod !== 'none' && client.clientSecret !== client_secret) {
+    return NextResponse.json(
+      { error: 'invalid_client' },
+      { status: 401, headers },
+    )
   }
 
   const token = body.token

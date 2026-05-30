@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { charonClients } from '@/lib/db/schema'
 import { getAdminSessionFromCookies } from '@/lib/session'
+import { maskSecret } from '@/lib/utils/oauth'
 import { eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
@@ -16,7 +17,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const clients = await db.select().from(charonClients).orderBy(charonClients.createdAt)
-  return NextResponse.json(clients)
+  const masked = clients.map((c) => ({ ...c, clientSecret: maskSecret(c.clientSecret) }))
+  return NextResponse.json(masked)
 }
 
 // POST /api/admin/clients — create

@@ -3,12 +3,18 @@
  * DELETE /api/admin/login — Admin logout
  */
 import { createAdminSession, deleteAdminSession, getAdminSessionFromCookies } from '@/lib/session'
-import { getClientIp } from '@/lib/utils/oauth'
+import { checkRateLimit, getClientIp } from '@/lib/utils/oauth'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
 export async function POST(req: Request) {
   const ip = getClientIp(req)
+  if (!checkRateLimit(`admin_login:${ip}`, 5, 60000)) {
+    return NextResponse.json(
+      { error: 'rate_limit_exceeded', error_description: 'Too many login attempts. Please wait.' },
+      { status: 429 },
+    )
+  }
   const ua = req.headers.get('user-agent') ?? undefined
   const body = await req.json()
   const { password } = body

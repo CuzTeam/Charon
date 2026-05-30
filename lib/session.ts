@@ -99,7 +99,7 @@ export async function getAdminSessionFromCookies() {
   const cookieStore = await cookies()
   const token = cookieStore.get('charon_admin_session')?.value
   if (!token) return null
-  return verifyAdminSession(token) ? token : null
+  return (await verifyAdminSession(token)) ? token : null
 }
 
 // ─── Audit Logging ───────────────────────────────────────────────────────────
