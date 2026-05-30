@@ -1,7 +1,6 @@
 import { db } from '@/lib/db'
 import {
   charonVerificationSessions,
-  charonClients,
   charonOnebots,
   charonUsers,
 } from '@/lib/db/schema'
@@ -9,6 +8,7 @@ import { eq, and } from 'drizzle-orm'
 import {
   getGroupMsgHistory,
   getGroupMemberInfo,
+  getGroupList,
   extractMessageText,
   getQQAvatarUrl,
 } from '@/lib/onebot'
@@ -54,17 +54,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'session_expired' }, { status: 400 })
   }
 
-  const allClients = await db
-    .select({ allowedGroups: charonClients.allowedGroups })
-    .from(charonClients)
-    .where(eq(charonClients.isActive, true))
-
-  const groups = [...new Set(allClients.flatMap((c) => c.allowedGroups as string[]))]
-
-  if (groups.length === 0) {
-    return NextResponse.json({ error: 'no_groups_configured' }, { status: 400 })
-  }
-
   const onebots = await db
     .select()
     .from(charonOnebots)
@@ -76,6 +65,16 @@ export async function POST(req: Request) {
 
   for (const onebot of onebots) {
     const config = { baseUrl: onebot.baseUrl, accessToken: onebot.accessToken }
+
+    let groups: string[]
+    try {
+      const list = await getGroupList(config)
+      groups = list.map((g) => String(g.group_id))
+    } catch {
+      continue
+    }
+
+    if (groups.length === 0) continue
 
     for (const groupId of groups) {
       try {

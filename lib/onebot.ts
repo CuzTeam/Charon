@@ -51,6 +51,13 @@ export interface GroupMessage {
   raw_message: string
 }
 
+export interface GroupInfo {
+  group_id: number
+  group_name: string
+  member_count: number
+  max_member_count: number
+}
+
 async function onebotRequest<T>(
   config: OneBotConfig,
   action: string,
@@ -143,6 +150,10 @@ export async function getStrangerInfo(
  */
 export async function getLoginInfo(config: OneBotConfig) {
   return onebotRequest<{ user_id: number; nickname: string }>(config, 'get_login_info', {})
+}
+
+export async function getGroupList(config: OneBotConfig): Promise<GroupInfo[]> {
+  return onebotRequest<GroupInfo[]>(config, 'get_group_list', {})
 }
 
 /**

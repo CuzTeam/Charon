@@ -1,11 +1,12 @@
 import { db } from '@/lib/db'
-import { charonClients, charonVerificationSessions } from '@/lib/db/schema'
+import { charonOnebots, charonVerificationSessions } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import {
   generateVerificationCode,
   checkRateLimit,
   getClientIp,
 } from '@/lib/utils/oauth'
+import { getGroupList } from '@/lib/onebot'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 
@@ -19,16 +20,35 @@ export async function POST(req: Request) {
     )
   }
 
-  const allClients = await db
-    .select({ allowedGroups: charonClients.allowedGroups })
-    .from(charonClients)
-    .where(eq(charonClients.isActive, true))
+  const onebots = await db
+    .select()
+    .from(charonOnebots)
+    .where(eq(charonOnebots.isActive, true))
 
-  const groups = [...new Set(allClients.flatMap((c) => c.allowedGroups as string[]))]
+  if (onebots.length === 0) {
+    return NextResponse.json(
+      { error: 'no_onebot_available', error_description: '没有可用的 OneBot 实例，请先在管理后台添加' },
+      { status: 400 },
+    )
+  }
+
+  const groupSet = new Set<string>()
+  for (const bot of onebots) {
+    try {
+      const list = await getGroupList({ baseUrl: bot.baseUrl, accessToken: bot.accessToken })
+      for (const g of list) {
+        groupSet.add(String(g.group_id))
+      }
+    } catch {
+      continue
+    }
+  }
+
+  const groups = [...groupSet]
 
   if (groups.length === 0) {
     return NextResponse.json(
-      { error: 'no_groups_configured', error_description: '没有配置任何 QQ 群，请先在管理后台配置客户端和群组' },
+      { error: 'no_groups_available', error_description: 'OneBot 实例未加入任何 QQ 群' },
       { status: 400 },
     )
   }
