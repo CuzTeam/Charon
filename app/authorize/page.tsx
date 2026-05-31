@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { Loader2, Shield, Copy, Check, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { SCOPE_DESCRIPTIONS } from '@/lib/utils/oauth-shared'
 
@@ -65,7 +66,6 @@ function AuthorizeInner() {
   const [clientName, setClientName] = useState('')
   const [clientLogo, setClientLogo] = useState('')
 
-  // Start verification session on mount
   useEffect(() => {
     if (!clientId || !redirectUri) {
       setStep('error')
@@ -128,7 +128,7 @@ function AuthorizeInner() {
       })
       const data = await res.json()
       if (res.status === 429) {
-        setError('请求过于频繁，请稍后再试 (30 RPM limit)')
+        setError('请求过于频繁，请稍后再试')
         return
       }
       if (!res.ok) {
@@ -167,7 +167,6 @@ function AuthorizeInner() {
         setError(data.error ?? 'Consent failed')
         return
       }
-      // Also create dashboard session
       if (granted && user) {
         await fetch('/api/auth/session', {
           method: 'POST',
@@ -226,7 +225,6 @@ function AuthorizeInner() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-4">
-        {/* Header */}
         <div className="flex items-center justify-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-lg">
             C
@@ -238,48 +236,43 @@ function AuthorizeInner() {
           {step === 'verify' && verif && (
             <>
               <CardHeader>
-                <CardTitle className="text-xl">QQ 验证登录</CardTitle>
+                <CardTitle className="text-xl">身份验证</CardTitle>
                 <CardDescription>
-                  {clientName
-                    ? `${clientName} 正在请求访问您的账户`
-                    : '请通过 QQ 验证您的身份'}
+                  将验证码发送到指定 QQ 群以验证您的身份
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                {/* Verification code */}
-                <div className="rounded-xl border bg-muted/40 p-4">
-                  <p className="mb-2 text-sm text-muted-foreground">在以下任意一个 QQ 群发送验证码：</p>
-                  <div className="flex items-center justify-between gap-3">
-                    <code className="text-2xl font-bold tracking-widest text-foreground">
-                      {verif.code}
-                    </code>
-                    <Button variant="ghost" size="sm" onClick={copyCode}>
-                      {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
-                    </Button>
-                  </div>
-                  {verif.groups && verif.groups.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {verif.groups.map((g) => (
-                        <Badge key={g} variant="secondary" className="font-mono text-xs">
-                          群 {g}
-                        </Badge>
+                <div className="flex flex-col items-center gap-3">
+                  <InputOTP
+                    maxLength={verif.code.length}
+                    value={verif.code}
+                    disabled
+                    className="pointer-events-none"
+                  >
+                    <InputOTPGroup>
+                      {verif.code.split('').map((_, i) => (
+                        <InputOTPSlot key={i} index={i} className="size-10 text-lg font-bold" />
                       ))}
-                    </div>
-                  )}
+                    </InputOTPGroup>
+                  </InputOTP>
+                  <Button variant="ghost" size="sm" onClick={copyCode} className="text-muted-foreground">
+                    {copied ? (
+                      <><Check className="size-3.5 mr-1 text-green-500" />已复制</>
+                    ) : (
+                      <><Copy className="size-3.5 mr-1" />复制验证码</>
+                    )}
+                  </Button>
                 </div>
 
-                {/* Scopes preview */}
-                <div>
-                  <p className="mb-2 text-sm font-medium">授权后将允许访问：</p>
-                  <div className="space-y-1.5">
-                    {scopes.map((s) => (
-                      <div key={s} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Shield className="size-3.5 shrink-0" />
-                        <span>{SCOPE_DESCRIPTIONS[s] ?? s}</span>
-                      </div>
+                {verif.groups && verif.groups.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 justify-center">
+                    {verif.groups.map((g) => (
+                      <Badge key={g} variant="secondary" className="font-mono text-xs">
+                        群 {g}
+                      </Badge>
                     ))}
                   </div>
-                </div>
+                )}
 
                 {error && (
                   <Alert variant="destructive">
@@ -296,10 +289,7 @@ function AuthorizeInner() {
                   {checking ? (
                     <><Loader2 className="mr-2 size-4 animate-spin" />检查中…</>
                   ) : (
-                    <>
-                      <CheckCircle2 className="mr-2 size-4" />
-                      已发送，检查验证
-                    </>
+                    <><CheckCircle2 className="mr-2 size-4" />已发送，验证</>
                   )}
                 </Button>
                 <Button variant="outline" size="icon" onClick={startVerification} disabled={loading}>
