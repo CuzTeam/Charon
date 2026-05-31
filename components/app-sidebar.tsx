@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import {
   LayoutDashboard,
   AppWindow,
@@ -11,6 +12,7 @@ import {
   Shield,
   LogOut,
   Fingerprint,
+  Palette,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -26,7 +28,7 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from '@/components/ui/sidebar'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 const mainNav = [
   { href: '/admin/overview', label: 'Overview', icon: LayoutDashboard },
@@ -36,13 +38,29 @@ const mainNav = [
 
 const settingsNav = [
   { href: '/admin/settings', label: 'General', icon: Settings },
+  { href: '/admin/settings/custom', label: 'Customization', icon: Palette },
   { href: '/admin/settings/onebots', label: 'OneBots', icon: Bot },
   { href: '/admin/settings/oauth', label: 'OAuth', icon: Shield },
 ]
 
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  fingerprint: Fingerprint,
+  shield: Shield,
+  'key-round': Settings,
+  bot: Bot,
+  appwindow: AppWindow,
+}
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const router = useRouter()
+  const [settings, setSettings] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then(setSettings)
+  }, [])
 
   function isActive(href: string) {
     if (href === '/admin/settings') return pathname === href
@@ -56,6 +74,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     window.location.reload()
   }
 
+  const systemName = settings.system_name || 'Charon'
+  const systemIcon = settings.system_icon || 'fingerprint'
+  const systemLogoUrl = settings.system_logo_url
+
+  const IconComponent = ICON_MAP[systemIcon.toLowerCase()]
+  const isEmoji = systemIcon && systemIcon.length <= 2 && !ICON_MAP[systemIcon.toLowerCase()]
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -63,11 +88,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/admin/overview">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <Fingerprint className="size-4" />
-                </div>
+                {systemLogoUrl ? (
+                  <Avatar className="size-8 rounded-lg">
+                    <AvatarImage src={systemLogoUrl} alt={systemName} />
+                    <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                      {systemName.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                    {isEmoji ? (
+                      <span className="text-sm">{systemIcon}</span>
+                    ) : IconComponent ? (
+                      <IconComponent className="size-4" />
+                    ) : (
+                      <Fingerprint className="size-4" />
+                    )}
+                  </div>
+                )}
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Charon</span>
+                  <span className="truncate font-semibold">{systemName}</span>
                   <span className="truncate text-xs">Admin Console</span>
                 </div>
               </Link>

@@ -193,3 +193,10 @@ export type CharonOnebot = typeof charonOnebots.$inferSelect
 export type CharonAuditLog = typeof charonAuditLogs.$inferSelect
 export type CharonConsent = typeof charonConsents.$inferSelect
 export type CharonDinoScore = typeof charonDinoScores.$inferSelect
+
+// System settings (key-value store)
+export const charonSettings = pgTable('charon_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
