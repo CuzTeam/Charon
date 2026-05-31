@@ -246,7 +246,6 @@ function AuthorizeInner() {
                   <InputOTP
                     maxLength={verif.code.length}
                     value={verif.code}
-                    disabled
                     onClick={copyCode}
                     className="cursor-pointer"
                   >
