@@ -16,7 +16,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { Loader2, Plus, Trash2, Copy, Check, AppWindow, Eye, EyeOff, Pencil, ChevronsUpDown, X } from 'lucide-react'
+import { Loader2, Plus, Trash2, Copy, Check, AppWindow, Eye, EyeOff, Pencil, ChevronsUpDown, X, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Client {
@@ -324,6 +324,15 @@ export default function ClientsPage() {
     )
   }
 
+  async function regenerateSecret(client: Client) {
+    if (!confirm('Regenerate client secret? The old secret will be invalidated immediately.')) return
+    const res = await fetch(`/api/admin/clients/${client.id}`, { method: 'POST' })
+    const data = await res.json()
+    if (!res.ok) { alert(data.error ?? 'Failed'); return }
+    setClients((prev) => prev.map((c) => c.id === client.id ? data : c))
+    setShowSecret((p) => ({ ...p, [client.id]: true }))
+  }
+
   if (loading) {
     return <div className="p-8 flex items-center gap-2 text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Loading…</div>
   }
@@ -509,6 +518,9 @@ export default function ClientsPage() {
                   </Button>
                   <Button variant="ghost" size="icon" className="size-7" onClick={() => copy(`sec-${client.id}`, client.clientSecret)}>
                     {copied[`sec-${client.id}`] ? <Check className="size-3 text-green-500" /> : <Copy className="size-3" />}
+                  </Button>
+                  <Button variant="ghost" size="icon" className="size-7 text-orange-500 hover:text-orange-600" onClick={() => regenerateSecret(client)}>
+                    <RefreshCw className="size-3" />
                   </Button>
                 </div>
                 <div className="flex items-start gap-2">

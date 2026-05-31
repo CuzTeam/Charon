@@ -4,6 +4,7 @@ import { getAdminSessionFromCookies } from '@/lib/session'
 import { maskSecret } from '@/lib/utils/oauth'
 import { eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
+import crypto from 'crypto'
 
 async function requireAdmin() {
   const session = await getAdminSessionFromCookies()
@@ -44,6 +45,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const rows = await db.select().from(charonClients).where(eq(charonClients.id, id)).limit(1)
   const masked = { ...rows[0], clientSecret: maskSecret(rows[0].clientSecret) }
   return NextResponse.json(masked)
+}
+
+// POST /api/admin/clients/[id] — regenerate client secret
+export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  try { await requireAdmin() } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const { id } = await params
+  const newSecret = crypto.randomBytes(32).toString('hex')
+  await db.update(charonClients).set({ clientSecret: newSecret, updatedAt: new Date() }).where(eq(charonClients.id, id))
+  const rows = await db.select().from(charonClients).where(eq(charonClients.id, id)).limit(1)
+  return NextResponse.json(rows[0])
 }
 
 // DELETE /api/admin/clients/[id]
