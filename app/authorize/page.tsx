@@ -242,20 +242,17 @@ function AuthorizeInner() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div
-                  className="flex flex-col items-center gap-2 cursor-pointer"
-                  onClick={copyCode}
-                  title="点击复制验证码"
-                >
+                <div className="flex flex-col items-center gap-2">
                   <InputOTP
                     maxLength={verif.code.length}
                     value={verif.code}
                     disabled
-                    className="pointer-events-none"
+                    onClick={copyCode}
+                    className="cursor-pointer"
                   >
                     <InputOTPGroup>
                       {verif.code.split('').map((_, i) => (
-                        <InputOTPSlot key={i} index={i} className="size-8 text-sm font-bold" />
+                        <InputOTPSlot key={i} index={i} className="size-8 text-sm" />
                       ))}
                     </InputOTPGroup>
                   </InputOTP>
@@ -263,7 +260,7 @@ function AuthorizeInner() {
                     {copied ? (
                       <><Check className="inline size-3 mr-0.5 text-green-500" />已复制</>
                     ) : (
-                      <>点击复制</>
+                      <>点击验证码复制</>
                     )}
                   </span>
                 </div>
