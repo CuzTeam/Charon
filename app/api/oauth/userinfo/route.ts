@@ -50,8 +50,8 @@ async function handleUserinfo(req: Request) {
   const scopes = row.at.scopes as string[]
 
   const claims: Record<string, unknown> = {
-    sub: user.id,
-    id: user.id,
+    sub: `qq:${user.qqId}`,
+    id: `qq:${user.qqId}`,
   }
 
   if (scopes.includes('email')) {
