@@ -1,4 +1,4 @@
-import { generateKeyPair, exportSPKI, exportPKCS8, importSPKI, importPKCS8, SignJWT, jwtVerify, exportJWK } from 'jose'
+import { generateKeyPair, exportSPKI, exportPKCS8, importSPKI, importPKCS8, SignJWT, jwtVerify } from 'jose'
 import { db } from '@/lib/db'
 import { charonJwks } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -13,8 +13,10 @@ export async function getOrCreateActiveKey() {
 
   if (existing.length > 0) return existing[0]
 
-  // Generate a new RSA key pair
-  const { publicKey, privateKey } = await generateKeyPair('RS256', { modulusLength: 2048 })
+  const { publicKey, privateKey } = await generateKeyPair('RS256', {
+    modulusLength: 2048,
+    extractable: true,
+  })
   const publicPem = await exportSPKI(publicKey)
   const privatePem = await exportPKCS8(privateKey)
 
@@ -35,13 +37,11 @@ export async function getJwks() {
     .from(charonJwks)
     .where(eq(charonJwks.isActive, true))
 
-  const jwks = await Promise.all(
-    keys.map(async (k) => {
-      const pub = await importSPKI(k.publicKey, 'RS256', { extractable: true })
-      const jwk = await exportJWK(pub)
-      return { ...jwk, use: 'sig', alg: 'RS256', kid: k.id }
-    }),
-  )
+  const jwks = keys.map((k) => {
+    const pubKey = crypto.createPublicKey(k.publicKey)
+    const jwk = pubKey.export({ format: 'jwk' })
+    return { ...jwk, use: 'sig', alg: 'RS256', kid: k.id }
+  })
   return { keys: jwks }
 }
 
