@@ -12,11 +12,16 @@ export async function OPTIONS(req: Request) {
 async function handleUserinfo(req: Request) {
   const headers = await corsHeadersForOrigin(req)
   headers['Cache-Control'] = 'no-store'
-  const authHeader = req.headers.get('Authorization') ?? ''
   let token = ''
 
+  const authHeader = req.headers.get('Authorization') ?? ''
   if (authHeader.startsWith('Bearer ')) {
     token = authHeader.slice(7)
+  }
+
+  if (!token) {
+    const url = new URL(req.url)
+    token = url.searchParams.get('access_token') ?? ''
   }
 
   if (!token) {
@@ -44,9 +49,9 @@ async function handleUserinfo(req: Request) {
   const { user } = row
   const scopes = row.at.scopes as string[]
 
-  // Always include sub
   const claims: Record<string, unknown> = {
     sub: user.id,
+    id: user.id,
   }
 
   if (scopes.includes('email')) {
