@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { DataTable, ArrowUpDown } from '@/components/ui/data-table'
 import { Loader2, Trash2, LayoutGrid, ShieldCheck } from 'lucide-react'
 import { SCOPE_DESCRIPTIONS } from '@/lib/utils/oauth-shared'
 
@@ -24,6 +25,83 @@ interface ConsentRow {
     description: string | null
     logoUrl: string | null
   }
+}
+
+function columns(revoke: (clientId: string) => void, revoking: string | null): ColumnDef<ConsentRow>[] {
+  return [
+    {
+      accessorKey: 'client',
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          应用
+          <ArrowUpDown className="ml-2 size-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const client = row.original.client
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar className="size-8 rounded-lg">
+              {client.logoUrl ? <AvatarImage src={client.logoUrl} alt={client.name} /> : null}
+              <AvatarFallback className="rounded-lg text-xs">{client.name[0]}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div className="font-medium">{client.name}</div>
+              {client.description && (
+                <div className="text-xs text-muted-foreground truncate max-w-[200px]">{client.description}</div>
+              )}
+            </div>
+          </div>
+        )
+      },
+      sortingFn: (a, b) => a.original.client.name.localeCompare(b.original.client.name),
+    },
+    {
+      accessorKey: 'scopes',
+      header: '授权范围',
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {(row.original.consent.scopes as string[]).map((s) => (
+            <Badge key={s} variant="secondary" className="text-xs">
+              {SCOPE_DESCRIPTIONS[s] ?? s}
+            </Badge>
+          ))}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'grantedAt',
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          授权时间
+          <ArrowUpDown className="ml-2 size-4" />
+        </Button>
+      ),
+      cell: ({ row }) => new Date(row.original.consent.grantedAt).toLocaleDateString('zh-CN'),
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => {
+        const clientId = row.original.client.clientId
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => revoke(clientId)}
+            disabled={revoking === clientId}
+          >
+            {revoking === clientId ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <><Trash2 className="size-4 mr-1" />撤销</>
+            )}
+          </Button>
+        )
+      },
+    },
+  ]
 }
 
 export function AppsClient({ userId }: { userId: string }) {
@@ -61,7 +139,7 @@ export function AppsClient({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-8">
       <div className="flex items-center gap-3 mb-6">
         <LayoutGrid className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold">已授权应用</h1>
@@ -79,53 +157,7 @@ export function AppsClient({ userId }: { userId: string }) {
           <p className="text-sm">暂无已授权的应用</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {consents.map(({ consent, client }) => (
-            <Card key={consent.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-3">
-                  <Avatar className="size-10 rounded-lg">
-                    {client.logoUrl ? (
-                      <AvatarImage src={client.logoUrl} alt={client.name} />
-                    ) : null}
-                    <AvatarFallback className="rounded-lg text-sm">{client.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-base">{client.name}</CardTitle>
-                    {client.description && (
-                      <CardDescription className="truncate">{client.description}</CardDescription>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                    onClick={() => revoke(client.clientId)}
-                    disabled={revoking === client.clientId}
-                  >
-                    {revoking === client.clientId ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <><Trash2 className="size-4 mr-1" />撤销</>
-                    )}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-1.5">
-                  {(consent.scopes as string[]).map((s) => (
-                    <Badge key={s} variant="secondary" className="text-xs">
-                      {SCOPE_DESCRIPTIONS[s] ?? s}
-                    </Badge>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  授权于 {new Date(consent.grantedAt).toLocaleDateString('zh-CN')}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <DataTable columns={columns(revoke, revoking)} data={consents} pageSize={10} />
       )}
     </div>
   )
