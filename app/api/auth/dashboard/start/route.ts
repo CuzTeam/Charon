@@ -3,7 +3,6 @@ import { charonOnebots, charonVerificationSessions } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import {
   generateVerificationCode,
-  checkRateLimit,
   getClientIp,
 } from '@/lib/utils/oauth'
 import { NextResponse } from 'next/server'
@@ -11,13 +10,6 @@ import crypto from 'crypto'
 
 export async function POST(req: Request) {
   const ip = getClientIp(req)
-
-  if (!checkRateLimit(`dashboard_start:${ip}`, 30, 60000)) {
-    return NextResponse.json(
-      { error: 'rate_limit_exceeded', error_description: '请求过于频繁 (30 RPM)' },
-      { status: 429 },
-    )
-  }
 
   const onebots = await db
     .select({ id: charonOnebots.id })

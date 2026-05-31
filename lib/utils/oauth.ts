@@ -7,6 +7,7 @@ import {
   maskQQId,
   maskSecret,
 } from './oauth-shared'
+import { db } from '@/lib/db'
 
 export {
   validateRedirectUri,
@@ -24,25 +25,6 @@ export function generateVerificationCode(): string {
     code += chars[crypto.randomInt(chars.length)]
   }
   return `CHARON-${code}`
-}
-
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
-
-export function checkRateLimit(key: string, maxRequests: number = 30, windowMs: number = 60000): boolean {
-  const now = Date.now()
-  const entry = rateLimitStore.get(key)
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitStore.set(key, { count: 1, resetAt: now + windowMs })
-    return true
-  }
-
-  if (entry.count >= maxRequests) {
-    return false
-  }
-
-  entry.count++
-  return true
 }
 
 export function generateCodeVerifier(): string {
@@ -72,6 +54,30 @@ export function getClientIp(req: Request): string {
   )
 }
 
+const SALT_LENGTH = 16
+const KEY_LENGTH = 64
+
+export function hashClientSecret(secret: string): string {
+  const salt = crypto.randomBytes(SALT_LENGTH).toString('hex')
+  const hash = crypto.scryptSync(secret, salt, KEY_LENGTH).toString('hex')
+  return `${salt}:${hash}`
+}
+
+export function verifyClientSecret(secret: string, stored: string): boolean {
+  if (!stored.includes(':')) {
+    return crypto.timingSafeEqual(
+      Buffer.from(secret, 'utf8'),
+      Buffer.from(stored, 'utf8'),
+    )
+  }
+  const [salt, hash] = stored.split(':')
+  const verifyHash = crypto.scryptSync(secret, salt, KEY_LENGTH).toString('hex')
+  return crypto.timingSafeEqual(
+    Buffer.from(hash, 'hex'),
+    Buffer.from(verifyHash, 'hex'),
+  )
+}
+
 export async function getAllowedOrigins(): Promise<string[]> {
   const origins = new Set<string>()
   const appUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -84,7 +90,6 @@ export async function getAllowedOrigins(): Promise<string[]> {
   } catch { /* ignore */ }
 
   try {
-    const { db } = await import('@/lib/db')
     const { charonClients } = await import('@/lib/db/schema')
     const clients = await db.select({ redirectUris: charonClients.redirectUris }).from(charonClients)
     for (const client of clients) {

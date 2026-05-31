@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { charonAccessTokens, charonClients, charonRefreshTokens } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { corsHeadersForOrigin } from '@/lib/utils/oauth'
+import { corsHeadersForOrigin, verifyClientSecret } from '@/lib/utils/oauth'
 import { NextResponse } from 'next/server'
 
 export async function OPTIONS(req: Request) {
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     )
   }
 
-  if (client.tokenEndpointAuthMethod !== 'none' && client.clientSecret !== client_secret) {
+  if (client.tokenEndpointAuthMethod !== 'none' && !verifyClientSecret(client_secret ?? '', client.clientSecret)) {
     return NextResponse.json(
       { error: 'invalid_client' },
       { status: 401, headers },

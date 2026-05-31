@@ -1,14 +1,8 @@
-/**
- * POST /api/auth/verify/check
- * Polls group messages to find verification code sender
- * Rate limited: 30 RPM per IP
- */
 import { db } from '@/lib/db'
 import {
   charonVerificationSessions,
   charonClients,
   charonOnebots,
-  charonUsers,
 } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import {
@@ -17,21 +11,14 @@ import {
   extractMessageText,
   getQQAvatarUrl,
 } from '@/lib/onebot'
-import { checkRateLimit, getClientIp } from '@/lib/utils/oauth'
+import { getClientIp } from '@/lib/utils/oauth'
 import { writeAuditLog, createUserSession } from '@/lib/session'
+import { upsertUserByQQ } from '@/lib/user'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import crypto from 'crypto'
 
 export async function POST(req: Request) {
   const ip = getClientIp(req)
-
-  if (!checkRateLimit(`verify_check:${ip}`, 30, 60000)) {
-    return NextResponse.json(
-      { error: 'rate_limit_exceeded', error_description: 'Too many requests. Please wait.' },
-      { status: 429 },
-    )
-  }
 
   const body = await req.json()
   const { token } = body
@@ -40,7 +27,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid_request' }, { status: 400 })
   }
 
-  // Load verification session
   const vsRows = await db
     .select()
     .from(charonVerificationSessions)
@@ -60,7 +46,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'session_expired' }, { status: 400 })
   }
 
-  // Load client to get allowed groups and onebot IDs
   const clientRows = await db
     .select()
     .from(charonClients)
@@ -78,7 +63,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'no_groups_configured' }, { status: 400 })
   }
 
-  // Load active onebots configured for this client
   let onebots = await db
     .select()
     .from(charonOnebots)
@@ -92,7 +76,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'no_onebot_available' }, { status: 503 })
   }
 
-  // Search each group via each onebot
   for (const onebot of onebots) {
     const config = { baseUrl: onebot.baseUrl, accessToken: onebot.accessToken }
 
@@ -100,7 +83,6 @@ export async function POST(req: Request) {
       try {
         const messages = await getGroupMsgHistory(config, groupId, 30)
 
-        // Find message containing our verification code
         const match = messages.find((msg) => {
           const text = extractMessageText(
             Array.isArray(msg.message) ? msg.message : [],
@@ -112,7 +94,6 @@ export async function POST(req: Request) {
 
         const qqId = String(match.sender.user_id)
 
-        // Get detailed member info
         let memberInfo
         try {
           memberInfo = await getGroupMemberInfo(config, groupId, match.sender.user_id)
@@ -124,48 +105,9 @@ export async function POST(req: Request) {
           memberInfo?.card || memberInfo?.nickname || match.sender.nickname || qqId
         const sex = memberInfo?.sex || match.sender.sex || 'unknown'
         const age = memberInfo?.age || match.sender.age || 0
-        const avatarUrl = getQQAvatarUrl(qqId, 640)
-        const email = `${qqId}@qq.com`
 
-        // Upsert user
-        const existingUsers = await db
-          .select()
-          .from(charonUsers)
-          .where(eq(charonUsers.qqId, qqId))
-          .limit(1)
+        const userId = await upsertUserByQQ({ qqId, nickname, sex, age })
 
-        let userId: string
-        if (existingUsers.length > 0) {
-          const existing = existingUsers[0]
-          userId = existing.id
-          await db
-            .update(charonUsers)
-            .set({
-              nickname,
-              avatarUrl,
-              sex,
-              age,
-              lastLoginAt: new Date(),
-              loginDays: (existing.loginDays ?? 0) + 1,
-              updatedAt: new Date(),
-            })
-            .where(eq(charonUsers.id, userId))
-        } else {
-          userId = crypto.randomUUID()
-          await db.insert(charonUsers).values({
-            id: userId,
-            qqId,
-            email,
-            nickname,
-            avatarUrl,
-            sex,
-            age,
-            loginDays: 1,
-            lastLoginAt: new Date(),
-          })
-        }
-
-        // Mark verification session as verified
         await db
           .update(charonVerificationSessions)
           .set({ verified: true, qqId })
@@ -195,6 +137,9 @@ export async function POST(req: Request) {
           path: '/',
         })
 
+        const avatarUrl = getQQAvatarUrl(qqId, 640)
+        const email = `${qqId}@qq.com`
+
         return NextResponse.json({
           verified: true,
           user: {
@@ -206,7 +151,6 @@ export async function POST(req: Request) {
           },
         })
       } catch {
-        // Try next onebot/group
         continue
       }
     }

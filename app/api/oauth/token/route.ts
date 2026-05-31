@@ -8,7 +8,7 @@ import {
 } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { signJwt, getIssuer } from '@/lib/jwt'
-import { verifyCodeChallenge, corsHeadersForOrigin, getClientIp } from '@/lib/utils/oauth'
+import { verifyCodeChallenge, corsHeadersForOrigin, getClientIp, verifyClientSecret } from '@/lib/utils/oauth'
 import { writeAuditLog } from '@/lib/session'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
@@ -71,15 +71,31 @@ async function handleAuthorizationCode(
     return NextResponse.json({ error: 'invalid_request' }, { status: 400, headers })
   }
 
-  // Find the auth code
+  // Atomically claim the auth code to prevent race conditions
+  const claimed = await db
+    .update(charonAuthorizationCodes)
+    .set({ used: true })
+    .where(
+      and(
+        eq(charonAuthorizationCodes.code, code),
+        eq(charonAuthorizationCodes.used, false),
+      ),
+    )
+    .returning({ id: charonAuthorizationCodes.id })
+
+  if (claimed.length === 0) {
+    return NextResponse.json({ error: 'invalid_grant' }, { status: 400, headers })
+  }
+
+  // Fetch the claimed auth code details
   const codeRows = await db
     .select()
     .from(charonAuthorizationCodes)
-    .where(eq(charonAuthorizationCodes.code, code))
+    .where(eq(charonAuthorizationCodes.id, claimed[0].id))
     .limit(1)
 
   const authCode = codeRows[0]
-  if (!authCode || authCode.used || authCode.expiresAt < new Date()) {
+  if (!authCode || authCode.expiresAt < new Date()) {
     return NextResponse.json({ error: 'invalid_grant' }, { status: 400, headers })
   }
 
@@ -106,7 +122,7 @@ async function handleAuthorizationCode(
     // no client secret required
   } else if (!client_secret) {
     return NextResponse.json({ error: 'invalid_client', error_description: 'client_secret is required' }, { status: 401, headers })
-  } else if (client.clientSecret !== client_secret) {
+  } else if (!verifyClientSecret(client_secret, client.clientSecret)) {
     return NextResponse.json({ error: 'invalid_client' }, { status: 401, headers })
   }
 
@@ -124,12 +140,6 @@ async function handleAuthorizationCode(
       return NextResponse.json({ error: 'invalid_grant', error_description: 'PKCE verification failed' }, { status: 400, headers })
     }
   }
-
-  // Mark code as used
-  await db
-    .update(charonAuthorizationCodes)
-    .set({ used: true })
-    .where(eq(charonAuthorizationCodes.id, authCode.id))
 
   // Fetch user
   const userRows = await db
@@ -264,7 +274,7 @@ async function handleRefreshToken(
     // no client secret required
   } else if (!client_secret) {
     return NextResponse.json({ error: 'invalid_client', error_description: 'client_secret is required' }, { status: 401, headers })
-  } else if (client.clientSecret !== client_secret) {
+  } else if (!verifyClientSecret(client_secret, client.clientSecret)) {
     return NextResponse.json({ error: 'invalid_client' }, { status: 401, headers })
   }
 

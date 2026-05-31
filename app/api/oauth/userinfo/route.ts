@@ -3,6 +3,7 @@ import { charonAccessTokens, charonUsers } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { getQQAvatarUrl } from '@/lib/onebot'
 import { corsHeadersForOrigin } from '@/lib/utils/oauth'
+import { getIssuer } from '@/lib/jwt'
 import { NextResponse } from 'next/server'
 
 export async function OPTIONS(req: Request) {
@@ -48,10 +49,10 @@ async function handleUserinfo(req: Request) {
 
   const { user } = row
   const scopes = row.at.scopes as string[]
+  const issuer = getIssuer()
 
   const claims: Record<string, unknown> = {
-    sub: `qq:${user.qqId}`,
-    id: `qq:${user.qqId}`,
+    sub: user.id,
   }
 
   if (scopes.includes('email')) {
@@ -76,7 +77,7 @@ async function handleUserinfo(req: Request) {
 
   if (scopes.includes('qq')) {
     claims.qq_id = user.qqId
-    claims.profile = `${process.env.NEXTAUTH_URL ?? ''}/profile/${user.qqId}`
+    claims.profile = `${issuer}/profile/${user.qqId}`
   }
 
   return NextResponse.json(claims, { headers })

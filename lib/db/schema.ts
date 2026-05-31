@@ -38,7 +38,9 @@ export const charonUsers = pgTable('charon_users', {
 // User sessions (JWT-backed)
 export const charonSessions = pgTable('charon_sessions', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => charonUsers.id, { onDelete: 'cascade' }),
   token: text('token').notNull().unique(),
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
@@ -96,8 +98,12 @@ export const charonClients = pgTable('charon_clients', {
 export const charonAuthorizationCodes = pgTable('charon_authorization_codes', {
   id: text('id').primaryKey(),
   code: text('code').notNull().unique(),
-  clientId: text('client_id').notNull(),
-  userId: text('user_id').notNull(),
+  clientId: text('client_id')
+    .notNull()
+    .references(() => charonClients.clientId, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => charonUsers.id, { onDelete: 'cascade' }),
   redirectUri: text('redirect_uri').notNull(),
   scopes: text('scopes').array().notNull().default([]),
   codeChallenge: text('code_challenge'),
@@ -113,8 +119,12 @@ export const charonAuthorizationCodes = pgTable('charon_authorization_codes', {
 export const charonAccessTokens = pgTable('charon_access_tokens', {
   id: text('id').primaryKey(),
   token: text('token').notNull().unique(),
-  clientId: text('client_id').notNull(),
-  userId: text('user_id').notNull(),
+  clientId: text('client_id')
+    .notNull()
+    .references(() => charonClients.clientId, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => charonUsers.id, { onDelete: 'cascade' }),
   scopes: text('scopes').array().notNull().default([]),
   revoked: boolean('revoked').notNull().default(false),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
@@ -125,8 +135,12 @@ export const charonAccessTokens = pgTable('charon_access_tokens', {
 export const charonRefreshTokens = pgTable('charon_refresh_tokens', {
   id: text('id').primaryKey(),
   token: text('token').notNull().unique(),
-  clientId: text('client_id').notNull(),
-  userId: text('user_id').notNull(),
+  clientId: text('client_id')
+    .notNull()
+    .references(() => charonClients.clientId, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => charonUsers.id, { onDelete: 'cascade' }),
   scopes: text('scopes').array().notNull().default([]),
   revoked: boolean('revoked').notNull().default(false),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
@@ -138,8 +152,12 @@ export const charonConsents = pgTable(
   'charon_consents',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id').notNull(),
-    clientId: text('client_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => charonUsers.id, { onDelete: 'cascade' }),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => charonClients.clientId, { onDelete: 'cascade' }),
     scopes: text('scopes').array().notNull().default([]),
     grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
@@ -182,7 +200,9 @@ export const charonAuditLogs = pgTable('charon_audit_logs', {
 // Dino game leaderboard
 export const charonDinoScores = pgTable('charon_dino_scores', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => charonUsers.id, { onDelete: 'cascade' }),
   score: integer('score').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })

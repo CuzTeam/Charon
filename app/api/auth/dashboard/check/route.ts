@@ -2,7 +2,6 @@ import { db } from '@/lib/db'
 import {
   charonVerificationSessions,
   charonOnebots,
-  charonUsers,
 } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import {
@@ -12,21 +11,14 @@ import {
   extractMessageText,
   getQQAvatarUrl,
 } from '@/lib/onebot'
-import { checkRateLimit, getClientIp } from '@/lib/utils/oauth'
+import { getClientIp } from '@/lib/utils/oauth'
 import { writeAuditLog, createUserSession } from '@/lib/session'
+import { upsertUserByQQ } from '@/lib/user'
 import { NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { cookies } from 'next/headers'
 
 export async function POST(req: Request) {
   const ip = getClientIp(req)
-
-  if (!checkRateLimit(`dashboard_check:${ip}`, 30, 60000)) {
-    return NextResponse.json(
-      { error: 'rate_limit_exceeded', error_description: '请求过于频繁，请稍后再试' },
-      { status: 429 },
-    )
-  }
 
   const body = await req.json()
   const { token } = body
@@ -102,45 +94,8 @@ export async function POST(req: Request) {
           memberInfo?.card || memberInfo?.nickname || match.sender.nickname || qqId
         const sex = memberInfo?.sex || match.sender.sex || 'unknown'
         const age = memberInfo?.age || match.sender.age || 0
-        const avatarUrl = getQQAvatarUrl(qqId, 640)
-        const email = `${qqId}@qq.com`
 
-        const existingUsers = await db
-          .select()
-          .from(charonUsers)
-          .where(eq(charonUsers.qqId, qqId))
-          .limit(1)
-
-        let userId: string
-        if (existingUsers.length > 0) {
-          const existing = existingUsers[0]
-          userId = existing.id
-          await db
-            .update(charonUsers)
-            .set({
-              nickname,
-              avatarUrl,
-              sex,
-              age,
-              lastLoginAt: new Date(),
-              loginDays: (existing.loginDays ?? 0) + 1,
-              updatedAt: new Date(),
-            })
-            .where(eq(charonUsers.id, userId))
-        } else {
-          userId = crypto.randomUUID()
-          await db.insert(charonUsers).values({
-            id: userId,
-            qqId,
-            email,
-            nickname,
-            avatarUrl,
-            sex,
-            age,
-            loginDays: 1,
-            lastLoginAt: new Date(),
-          })
-        }
+        const userId = await upsertUserByQQ({ qqId, nickname, sex, age })
 
         await db
           .update(charonVerificationSessions)
@@ -168,6 +123,9 @@ export async function POST(req: Request) {
           ipAddress: ip,
           metadata: { qqId, groupId, onebotId: onebot.id },
         })
+
+        const avatarUrl = getQQAvatarUrl(qqId, 640)
+        const email = `${qqId}@qq.com`
 
         return NextResponse.json({
           verified: true,

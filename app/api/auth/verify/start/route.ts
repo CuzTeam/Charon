@@ -6,7 +6,6 @@ import {
   validateRedirectUri,
   parseScopes,
   filterScopes,
-  checkRateLimit,
   getClientIp,
 } from '@/lib/utils/oauth'
 import { getSessionFromCookies } from '@/lib/session'
@@ -16,13 +15,6 @@ import crypto from 'crypto'
 
 export async function POST(req: Request) {
   const ip = getClientIp(req)
-
-  if (!checkRateLimit(`verify_start:${ip}`, 30, 60000)) {
-    return NextResponse.json(
-      { error: 'rate_limit_exceeded', error_description: 'Too many requests (30 RPM)' },
-      { status: 429 },
-    )
-  }
 
   const body = await req.json()
   const {

@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { charonClients } from '@/lib/db/schema'
 import { getAdminSessionFromCookies } from '@/lib/session'
-import { maskSecret } from '@/lib/utils/oauth'
+import { maskSecret, hashClientSecret } from '@/lib/utils/oauth'
 import { eq } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
@@ -53,10 +53,11 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const { id } = await params
-  const newSecret = crypto.randomBytes(32).toString('hex')
-  await db.update(charonClients).set({ clientSecret: newSecret, updatedAt: new Date() }).where(eq(charonClients.id, id))
+  const newSecretPlain = crypto.randomBytes(32).toString('hex')
+  const newSecretHashed = hashClientSecret(newSecretPlain)
+  await db.update(charonClients).set({ clientSecret: newSecretHashed, updatedAt: new Date() }).where(eq(charonClients.id, id))
   const rows = await db.select().from(charonClients).where(eq(charonClients.id, id)).limit(1)
-  return NextResponse.json(rows[0])
+  return NextResponse.json({ ...rows[0], client_secret: newSecretPlain })
 }
 
 // DELETE /api/admin/clients/[id]
