@@ -37,7 +37,7 @@ export async function getJwks() {
 
   const jwks = await Promise.all(
     keys.map(async (k) => {
-      const pub = await importSPKI(k.publicKey, 'RS256')
+      const pub = await importSPKI(k.publicKey, 'RS256', { extractable: true })
       const jwk = await exportJWK(pub)
       return { ...jwk, use: 'sig', alg: 'RS256', kid: k.id }
     }),
