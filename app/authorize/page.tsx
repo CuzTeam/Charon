@@ -102,7 +102,13 @@ function AuthorizeInner() {
       setScopes(scope.split(' ').filter(Boolean))
       setClientName(data.client_name ?? clientId)
       setClientLogo(data.client_logo ?? '')
-      setStep('verify')
+
+      if (data.already_verified && data.user) {
+        setUser(data.user)
+        setStep('consent')
+      } else {
+        setStep('verify')
+      }
     } catch (e) {
       setStep('error')
       setError('Network error. Please try again.')

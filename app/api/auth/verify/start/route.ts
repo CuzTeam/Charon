@@ -1,7 +1,3 @@
-/**
- * POST /api/auth/verify/start
- * Starts a QQ verification session for OAuth flow
- */
 import { db } from '@/lib/db'
 import { charonClients, charonVerificationSessions } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
@@ -13,6 +9,8 @@ import {
   checkRateLimit,
   getClientIp,
 } from '@/lib/utils/oauth'
+import { getSessionFromCookies } from '@/lib/session'
+import { getQQAvatarUrl } from '@/lib/onebot'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 
@@ -66,9 +64,11 @@ export async function POST(req: Request) {
   const requestedScopes = parseScopes(scope ?? 'openid')
   const allowedScopes = filterScopes(requestedScopes, client.allowedScopes as string[])
 
+  const session = await getSessionFromCookies()
+
   const code = generateVerificationCode()
   const token = crypto.randomBytes(16).toString('hex')
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
 
   await db.insert(charonVerificationSessions).values({
     id: crypto.randomUUID(),
@@ -82,12 +82,27 @@ export async function POST(req: Request) {
     nonce,
     state,
     expiresAt,
+    verified: !!session,
+    qqId: session?.user.qqId ?? null,
   })
 
-  return NextResponse.json({
+  const response: Record<string, unknown> = {
     token,
     code,
     expires_in: 600,
     groups: client.allowedGroups,
-  })
+  }
+
+  if (session) {
+    response.already_verified = true
+    response.user = {
+      id: session.user.id,
+      qq_id: session.user.qqId,
+      nickname: session.user.nickname,
+      avatar_url: getQQAvatarUrl(session.user.qqId, 640),
+      email: session.user.email,
+    }
+  }
+
+  return NextResponse.json(response)
 }

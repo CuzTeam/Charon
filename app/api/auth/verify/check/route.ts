@@ -18,8 +18,9 @@ import {
   getQQAvatarUrl,
 } from '@/lib/onebot'
 import { checkRateLimit, getClientIp } from '@/lib/utils/oauth'
-import { writeAuditLog } from '@/lib/session'
+import { writeAuditLog, createUserSession } from '@/lib/session'
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import crypto from 'crypto'
 
 export async function POST(req: Request) {
@@ -178,6 +179,20 @@ export async function POST(req: Request) {
           targetId: vs.clientId,
           ipAddress: ip,
           metadata: { qqId, groupId, onebotId: onebot.id },
+        })
+
+        const sessionToken = await createUserSession(userId, {
+          ipAddress: ip,
+          userAgent: req.headers.get('user-agent') ?? undefined,
+        })
+
+        const cookieStore = await cookies()
+        cookieStore.set('charon_session', sessionToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
         })
 
         return NextResponse.json({
