@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
-import { Loader2, Shield, Copy, Check, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Loader2, Shield, Check, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { SCOPE_DESCRIPTIONS } from '@/lib/utils/oauth-shared'
 
 interface VerificationData {
@@ -242,7 +242,11 @@ function AuthorizeInner() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div className="flex flex-col items-center gap-3">
+                <div
+                  className="flex flex-col items-center gap-2 cursor-pointer"
+                  onClick={copyCode}
+                  title="点击复制验证码"
+                >
                   <InputOTP
                     maxLength={verif.code.length}
                     value={verif.code}
@@ -251,17 +255,17 @@ function AuthorizeInner() {
                   >
                     <InputOTPGroup>
                       {verif.code.split('').map((_, i) => (
-                        <InputOTPSlot key={i} index={i} className="size-10 text-lg font-bold" />
+                        <InputOTPSlot key={i} index={i} className="size-8 text-sm font-bold" />
                       ))}
                     </InputOTPGroup>
                   </InputOTP>
-                  <Button variant="ghost" size="sm" onClick={copyCode} className="text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {copied ? (
-                      <><Check className="size-3.5 mr-1 text-green-500" />已复制</>
+                      <><Check className="inline size-3 mr-0.5 text-green-500" />已复制</>
                     ) : (
-                      <><Copy className="size-3.5 mr-1" />复制验证码</>
+                      <>点击复制</>
                     )}
-                  </Button>
+                  </span>
                 </div>
 
                 {verif.groups && verif.groups.length > 0 && (
@@ -289,7 +293,7 @@ function AuthorizeInner() {
                   {checking ? (
                     <><Loader2 className="mr-2 size-4 animate-spin" />检查中…</>
                   ) : (
-                    <><CheckCircle2 className="mr-2 size-4" />已发送，验证</>
+                    <><CheckCircle2 className="mr-2 size-4" />验证</>
                   )}
                 </Button>
                 <Button variant="outline" size="icon" onClick={startVerification} disabled={loading}>
@@ -344,10 +348,6 @@ function AuthorizeInner() {
             </>
           )}
         </Card>
-
-        <p className="text-center text-xs text-muted-foreground">
-          由 Charon 提供安全认证服务 · 验证码有效期 10 分钟
-        </p>
       </div>
     </div>
   )
