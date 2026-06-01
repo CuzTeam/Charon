@@ -159,7 +159,7 @@ async function handleAuthorizationCode(
   // Build ID token claims
   const idTokenClaims: Record<string, unknown> = {
     iss: issuer,
-    sub: user.id,
+    sub: `qq:${user.qqId}`,
     aud: client_id,
     iat: now,
     exp: now + client.idTokenTtl,

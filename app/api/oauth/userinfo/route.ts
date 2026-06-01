@@ -52,7 +52,7 @@ async function handleUserinfo(req: Request) {
   const issuer = getIssuer()
 
   const claims: Record<string, unknown> = {
-    sub: user.id,
+    sub: `qq:${user.qqId}`,
   }
 
   if (scopes.includes('email')) {

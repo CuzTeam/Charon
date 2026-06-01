@@ -75,7 +75,7 @@ export async function POST(req: Request) {
   return NextResponse.json(
     {
       active: true,
-      sub: row.user.id,
+      sub: `qq:${row.user.qqId}`,
       username: row.user.nickname,
       scope: (row.at.scopes as string[]).join(' '),
       client_id: row.at.clientId,
